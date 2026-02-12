@@ -93,7 +93,9 @@ public class MarketSnapshotService {
                         s.getNoBid(),
                         s.getLastPrice(),
                         s.getMarket().getSubtitle(),
-                        s.getMarket().getStatus()))
+                        s.getMarket().getStatus(), s.getMarket().getEvent().getEventTicker()))
                 .collect(Collectors.toList());
     }
+
+
 }
