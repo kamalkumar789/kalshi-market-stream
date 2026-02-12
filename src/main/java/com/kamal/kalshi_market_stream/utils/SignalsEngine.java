@@ -14,14 +14,26 @@ public class SignalsEngine {
     private static final Logger log = LoggerFactory.getLogger(SignalsEngine.class);
 
     public Signals.Trend update(String eventTicker, int price) {
-        Signals s = signalsByEvent.computeIfAbsent(
-                eventTicker,
-                k -> new Signals());
+        Signals s = signalsByEvent.computeIfAbsent(eventTicker, k -> {
+            log.debug("Creating new Signals instance for event={}", k);
+            return new Signals();
+        });
 
-        return s.update(price);
+        Signals.Trend trend = s.update(price);
+
+        log.debug("SignalsEngine update: event={}, price={}, trend={}",
+                eventTicker, price, trend);
+
+        return trend;
     }
 
     public void remove(String eventTicker) {
-        signalsByEvent.remove(eventTicker);
+        Signals removed = signalsByEvent.remove(eventTicker);
+
+        if (removed != null) {
+            log.debug("Removed Signals for event={}", eventTicker);
+        } else {
+            log.debug("No Signals found to remove for event={}", eventTicker);
+        }
     }
 }

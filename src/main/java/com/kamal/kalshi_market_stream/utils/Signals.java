@@ -6,14 +6,12 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class Signals {
 
     public enum Trend {
         UP, DOWN, FLAT
     }
 
-    // fast should be smaller than slow
     private final int fastWindow = 5;
     private final int slowWindow = 10;
     private static final Logger log = LoggerFactory.getLogger(Signals.class);
@@ -25,6 +23,8 @@ public class Signals {
     private long slowSum = 0;
 
     public Trend update(int value) {
+        log.debug("Signals update called with value={}", value);
+
         // --- fast window update ---
         fastQueue.addLast(value);
         fastSum += value;
@@ -39,19 +39,26 @@ public class Signals {
             slowSum -= slowQueue.removeFirst();
         }
 
-        // Need BOTH windows filled before emitting UP/DOWN
         if (fastQueue.size() < fastWindow || slowQueue.size() < slowWindow) {
+            log.debug("Windows not full yet: fast={}, slow={}",
+                    fastQueue.size(), slowQueue.size());
             return Trend.FLAT;
         }
 
         double fastAvg = fastSum / (double) fastWindow;
         double slowAvg = slowSum / (double) slowWindow;
-
         double diff = fastAvg - slowAvg;
 
+        Trend trend;
         if (Math.abs(diff) == 0.0) {
-            return Trend.FLAT;
+            trend = Trend.FLAT;
+        } else {
+            trend = diff > 0.0 ? Trend.UP : Trend.DOWN;
         }
-        return diff > 0.0 ? Trend.UP : Trend.DOWN;
+
+        log.debug("Trend computed: fastAvg={}, slowAvg={}, diff={}, trend={}",
+                fastAvg, slowAvg, diff, trend);
+
+        return trend;
     }
 }

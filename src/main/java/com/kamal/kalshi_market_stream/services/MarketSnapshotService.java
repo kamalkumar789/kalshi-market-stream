@@ -2,7 +2,6 @@ package com.kamal.kalshi_market_stream.services;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -22,7 +21,7 @@ import com.kamal.kalshi_market_stream.repositories.MarketSnapshotRepository;
 public class MarketSnapshotService {
 
     private final MarketSnapshotRepository snapshotRepository;
-        private static final Logger log = LoggerFactory.getLogger(MarketSnapshotService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketSnapshotService.class);
 
     public MarketSnapshotService(MarketSnapshotRepository snapshotRepository) {
         this.snapshotRepository = snapshotRepository;
@@ -39,6 +38,10 @@ public class MarketSnapshotService {
             Integer lastPrice,
             Integer volume24h,
             Integer openInterest) {
+
+        log.debug("Storing snapshot: market={}, observedAt={}, lastPrice={}",
+                market.getMarketTicker(), observedAt, lastPrice);
+
         MarketSnapshot snapshot = new MarketSnapshot();
         snapshot.setMarket(market);
         snapshot.setObservedAt(observedAt);
@@ -48,7 +51,12 @@ public class MarketSnapshotService {
         snapshot.setNoAsk(noAsk);
         snapshot.setLastPrice(lastPrice);
 
-        return snapshotRepository.save(snapshot);
+        MarketSnapshot saved = snapshotRepository.save(snapshot);
+
+        log.debug("Snapshot saved: id={}, market={}",
+                saved.getId(), market.getMarketTicker());
+
+        return saved;
     }
 
     public List<MarketSnapshotPointDTO> fetch(
@@ -57,8 +65,11 @@ public class MarketSnapshotService {
             Instant from,
             Instant to,
             int limit) {
-        // safety caps so someone doesn't request 1M rows
+
         int safeLimit = Math.max(1, Math.min(limit, 5000));
+
+        log.debug("Fetching snapshots: market={}, status={}, from={}, to={}, limit={}",
+                marketTicker, status, from, to, safeLimit);
 
         Sort sort = Sort.by("DESC", "observedAt");
         Pageable pageable = PageRequest.of(0, safeLimit, sort);
@@ -66,12 +77,16 @@ public class MarketSnapshotService {
         List<MarketSnapshot> rows;
 
         if (from != null && to != null) {
-            rows = snapshotRepository.findByMarket_MarketTickerAndMarket_StatusAndObservedAtBetween(
-                    marketTicker, status, from, to, pageable);
+            rows = snapshotRepository
+                    .findByMarket_MarketTickerAndMarket_StatusAndObservedAtBetween(
+                            marketTicker, status, from, to, pageable);
         } else {
-            rows = snapshotRepository.findByMarket_MarketTickerAndMarket_Status(
-                    marketTicker, status, pageable);
+            rows = snapshotRepository
+                    .findByMarket_MarketTickerAndMarket_Status(
+                            marketTicker, status, pageable);
         }
+
+        log.debug("Fetched {} snapshot rows for market={}", rows.size(), marketTicker);
 
         return rows.stream()
                 .map(s -> new MarketSnapshotPointDTO(
@@ -83,5 +98,4 @@ public class MarketSnapshotService {
                         s.getMarket().getStatus()))
                 .collect(Collectors.toList());
     }
-
 }

@@ -16,8 +16,6 @@ import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
 public class MarketSnapshotRangeController {
 
     private final MarketSnapshotService rangeService;
-    private static final Logger log = LoggerFactory.getLogger(MarketSnapshotRangeController.class);
-
 
     public MarketSnapshotRangeController(MarketSnapshotService rangeService) {
         this.rangeService = rangeService;

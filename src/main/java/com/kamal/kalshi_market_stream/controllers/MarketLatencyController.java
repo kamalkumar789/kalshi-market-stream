@@ -5,6 +5,7 @@ import com.kamal.kalshi_market_stream.services.MarketLatencyService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class MarketLatencyController {
     private static final Logger log =
             LoggerFactory.getLogger(MarketLatencyController.class);
 
+    @Autowired
     private final MarketLatencyService service;
 
     public MarketLatencyController(MarketLatencyService service) {

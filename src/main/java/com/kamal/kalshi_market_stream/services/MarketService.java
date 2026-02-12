@@ -15,7 +15,8 @@ import com.kamal.kalshi_market_stream.repositories.MarketRepository;
 public class MarketService {
 
     private final MarketRepository marketRepository;
-        private static final Logger log = LoggerFactory.getLogger(MarketService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketService.class);
+
     public MarketService(MarketRepository marketRepository) {
         this.marketRepository = marketRepository;
     }
@@ -26,16 +27,24 @@ public class MarketService {
             String eventTicker,
             String title,
             String subtitle,
-            String responsePriceUnits,
             Instant openTime,
             Instant closeTime,
-            Instant expirationTime,
             String status,
             Instant createdTime,
             Instant updatedTime
     ) {
+        log.info("storeOrUpdateMarket called for marketTicker={}", marketTicker);
+
         Optional<Market> existingOpt = marketRepository.findByMarketTicker(marketTicker);
-        Market market = existingOpt.orElseGet(Market::new);
+
+        Market market;
+        if (existingOpt.isPresent()) {
+            log.info("Updating existing market: {}", marketTicker);
+            market = existingOpt.get();
+        } else {
+            log.info("Creating new market: {}", marketTicker);
+            market = new Market();
+        }
 
         market.setMarketTicker(marketTicker);
         market.setEventTicker(eventTicker);
@@ -43,11 +52,15 @@ public class MarketService {
         market.setSubtitle(subtitle);
         market.setOpenTime(openTime);
         market.setCloseTime(closeTime);
-        market.setExpirationTime(expirationTime);
         market.setStatus(status);
         market.setCreatedTime(createdTime);
         market.setUpdatedTime(updatedTime);
 
-        return marketRepository.save(market);
+        Market saved = marketRepository.save(market);
+
+        log.info("Market saved successfully: marketTicker={}, id={}", 
+                 saved.getMarketTicker(), saved.getId());
+
+        return saved;
     }
 }

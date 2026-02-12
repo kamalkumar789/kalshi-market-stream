@@ -1,7 +1,6 @@
 package com.kamal.kalshi_market_stream.services;
 
 import com.kamal.kalshi_market_stream.DTOs.MarketLatencyResponseDTO;
-import com.kamal.kalshi_market_stream.controllers.MarketLatencyController;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshotLatency;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotLatencyRepository;
@@ -16,21 +15,22 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Service
 public class MarketLatencyService {
 
+    private static final Logger log = LoggerFactory.getLogger(MarketLatencyService.class);
+
     private final MarketSnapshotLatencyRepository latencyRepository;
     private final MarketSnapshotRepository snapshotRepository;
-        private static final Logger log = LoggerFactory.getLogger(MarketLatencyService.class);
 
-
-    public MarketLatencyService(MarketSnapshotLatencyRepository latencyRepository, MarketSnapshotRepository snapshotRepository) {
+    public MarketLatencyService(
+            MarketSnapshotLatencyRepository latencyRepository,
+            MarketSnapshotRepository snapshotRepository
+    ) {
         this.latencyRepository = latencyRepository;
         this.snapshotRepository = snapshotRepository;
     }
@@ -40,7 +40,14 @@ public class MarketLatencyService {
             Instant exchangeTs,
             Instant receivedTs,
             Instant processedTs,
-            String source) {
+            String source
+    ) {
+        if (snapshot == null || exchangeTs == null || receivedTs == null || processedTs == null) {
+            log.warn("Skipping latency record due to nulls | snapshot={} exchangeTs={} receivedTs={} processedTs={}",
+                    snapshot != null ? snapshot.getId() : null, exchangeTs, receivedTs, processedTs);
+            return;
+        }
+
         MarketSnapshotLatency l = new MarketSnapshotLatency();
         l.setSnapshot(snapshot);
         l.setExchangeTs(exchangeTs);
@@ -61,52 +68,70 @@ public class MarketLatencyService {
     }
 
     public List<MarketLatencyResponseDTO> getRecentFreshLatencies(String marketTicker, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 500));
 
-        int safeLimit = Math.max(1, Math.min(limit, 500)); 
+        // Fetch extra because we might drop duplicates by observedAt
+        int fetchSize = safeLimit * 3;
 
-        List<MarketSnapshot> recentSnapshots = snapshotRepository.findByMarket_MarketTickerOrderByObservedAtDesc(
-                marketTicker,
-                PageRequest.of(0, safeLimit)
-        );
+        List<MarketSnapshot> recentSnapshots =
+                snapshotRepository.findByMarket_MarketTickerOrderByObservedAtDesc(
+                        marketTicker,
+                        PageRequest.of(0, fetchSize)
+                );
 
+        if (recentSnapshots.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Reverse so we keep the FIRST observation per observedAt
         Collections.reverse(recentSnapshots);
 
-        // 2) Filter out duplicates by observedAt (exchangeTs / observedAt). Keep first
-        // occurrence only.
         Set<Instant> seenObservedAt = new HashSet<>();
         List<Long> snapshotIds = new ArrayList<>();
 
         for (MarketSnapshot s : recentSnapshots) {
-            Instant observedAt = s.getObservedAt(); // your snapshot column storing exchange updated time
-            if (observedAt == null)
-                continue;
+            Instant observedAt = s.getObservedAt();
+            if (observedAt == null) continue;
 
             if (seenObservedAt.add(observedAt)) {
                 snapshotIds.add(s.getId());
+                if (snapshotIds.size() == safeLimit) break;
             }
         }
 
-        if (snapshotIds.isEmpty())
+        if (snapshotIds.isEmpty()) {
             return Collections.emptyList();
+        }
 
-        // 3) Fetch latencies for those snapshot IDs
-        List<MarketSnapshotLatency> latencies = latencyRepository.findBySnapshot_IdIn(snapshotIds);
+        List<MarketSnapshotLatency> latencies =
+                latencyRepository.findBySnapshot_IdIn(snapshotIds);
 
-        // 5) Return DTOs in the same order as filtered snapshots
+        // Build response in the same order as snapshotIds (simple scan, still small)
         List<MarketLatencyResponseDTO> result = new ArrayList<>();
-        for (MarketSnapshotLatency snapshotId : latencies) {
+
+        for (Long snapshotId : snapshotIds) {
+            MarketSnapshotLatency l = null;
+
+            for (MarketSnapshotLatency candidate : latencies) {
+                if (candidate.getSnapshot() != null && snapshotId.equals(candidate.getSnapshot().getId())) {
+                    l = candidate;
+                    break;
+                }
+            }
+
+            if (l == null) continue;
 
             result.add(new MarketLatencyResponseDTO(
-                    snapshotId.getId(),
-                    snapshotId.getExchangeTs(),
-                    snapshotId.getReceivedTs(),
-                    snapshotId.getProcessedTs(),
-                    snapshotId.getNetworkLatencyMs(),
-                    snapshotId.getProcessingLatencyMs(),
-                    snapshotId.getEndToEndLatencyMs()));
+                    snapshotId, // snapshot id (not latency id)
+                    l.getExchangeTs(),
+                    l.getReceivedTs(),
+                    l.getProcessedTs(),
+                    l.getNetworkLatencyMs(),
+                    l.getProcessingLatencyMs(),
+                    l.getEndToEndLatencyMs()
+            ));
         }
 
         return result;
     }
-
 }
