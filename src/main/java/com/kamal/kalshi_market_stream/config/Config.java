@@ -1,5 +1,8 @@
 package com.kamal.kalshi_market_stream.config;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -17,6 +20,11 @@ public class Config {
     @Bean
     public SignalsEngine signalEngine(){
         return new SignalsEngine();
+    }
+
+    @Bean
+    public Executor marketPollExecutor() {
+        return Executors.newFixedThreadPool(2);
     }
 
     

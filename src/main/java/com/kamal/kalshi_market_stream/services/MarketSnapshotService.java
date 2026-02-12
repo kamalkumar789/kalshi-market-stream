@@ -35,9 +35,7 @@ public class MarketSnapshotService {
             Integer yesAsk,
             Integer noBid,
             Integer noAsk,
-            Integer lastPrice,
-            Integer volume24h,
-            Integer openInterest) {
+            Integer lastPrice) {
 
         log.debug("Storing snapshot: market={}, observedAt={}, lastPrice={}",
                 market.getMarketTicker(), observedAt, lastPrice);

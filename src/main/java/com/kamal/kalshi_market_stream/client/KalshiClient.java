@@ -17,9 +17,9 @@ public class KalshiClient {
                 .build();
     }
 
-    public KalshiMarketsResponseDTO getSeries(String ticker, int limit) {
+    public KalshiMarketsResponseDTO getMarketDataByEvent(String event_ticker) {
         return kaClient.get()
-                .uri("/markets?limit={limit}&series_ticker={ticket}", limit, ticker)
+                .uri("/markets?event_ticker={event_ticker}", event_ticker)
                 .retrieve()
                 .bodyToMono(KalshiMarketsResponseDTO.class)
                 .block(); 
