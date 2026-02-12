@@ -23,17 +23,13 @@ public class MarketSnapshot {
     private Market market;
 
     @Column(nullable = false)
-    private Instant observedAt; // when your scheduler polled
+    private Instant observedAt; 
 
-    // Store integer cents (matches response_price_units=usd_cent)
     private Integer yesBid;
     private Integer yesAsk;
     private Integer noBid;
     private Integer noAsk;
     private Integer lastPrice;
 
-    // Optional but handy
-    private Integer volume24h;
-    private Integer openInterest;
 
 }

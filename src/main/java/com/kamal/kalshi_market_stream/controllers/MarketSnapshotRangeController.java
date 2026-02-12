@@ -3,6 +3,8 @@ package com.kamal.kalshi_market_stream.controllers;
 import java.time.Instant;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,8 @@ import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
 public class MarketSnapshotRangeController {
 
     private final MarketSnapshotService rangeService;
+    private static final Logger log = LoggerFactory.getLogger(MarketSnapshotRangeController.class);
+
 
     public MarketSnapshotRangeController(MarketSnapshotService rangeService) {
         this.rangeService = rangeService;

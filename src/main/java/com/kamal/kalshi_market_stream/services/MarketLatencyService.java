@@ -1,11 +1,14 @@
 package com.kamal.kalshi_market_stream.services;
 
 import com.kamal.kalshi_market_stream.DTOs.MarketLatencyResponseDTO;
+import com.kamal.kalshi_market_stream.controllers.MarketLatencyController;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshotLatency;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotLatencyRepository;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +27,8 @@ public class MarketLatencyService {
 
     private final MarketSnapshotLatencyRepository latencyRepository;
     private final MarketSnapshotRepository snapshotRepository;
+        private static final Logger log = LoggerFactory.getLogger(MarketLatencyService.class);
+
 
     public MarketLatencyService(MarketSnapshotLatencyRepository latencyRepository, MarketSnapshotRepository snapshotRepository) {
         this.latencyRepository = latencyRepository;

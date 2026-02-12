@@ -3,6 +3,8 @@ package com.kamal.kalshi_market_stream.services;
 import java.time.Instant;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,7 @@ import com.kamal.kalshi_market_stream.repositories.MarketRepository;
 public class MarketService {
 
     private final MarketRepository marketRepository;
-
+        private static final Logger log = LoggerFactory.getLogger(MarketService.class);
     public MarketService(MarketRepository marketRepository) {
         this.marketRepository = marketRepository;
     }
@@ -39,7 +41,6 @@ public class MarketService {
         market.setEventTicker(eventTicker);
         market.setTitle(title);
         market.setSubtitle(subtitle);
-        market.setResponsePriceUnits(responsePriceUnits);
         market.setOpenTime(openTime);
         market.setCloseTime(closeTime);
         market.setExpirationTime(expirationTime);

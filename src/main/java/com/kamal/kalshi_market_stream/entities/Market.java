@@ -39,9 +39,6 @@ public class Market {
     @Column(length = 256)
     private String subtitle;
 
-    @Column(length = 32)
-    private String responsePriceUnits; // e.g. "usd_cent"
-
     private Instant openTime;
     private Instant closeTime;
     private Instant expirationTime;

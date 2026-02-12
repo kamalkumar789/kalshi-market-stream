@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -20,6 +22,7 @@ import com.kamal.kalshi_market_stream.repositories.MarketSnapshotRepository;
 public class MarketSnapshotService {
 
     private final MarketSnapshotRepository snapshotRepository;
+        private static final Logger log = LoggerFactory.getLogger(MarketSnapshotService.class);
 
     public MarketSnapshotService(MarketSnapshotRepository snapshotRepository) {
         this.snapshotRepository = snapshotRepository;
@@ -44,8 +47,6 @@ public class MarketSnapshotService {
         snapshot.setNoBid(noBid);
         snapshot.setNoAsk(noAsk);
         snapshot.setLastPrice(lastPrice);
-        snapshot.setVolume24h(volume24h);
-        snapshot.setOpenInterest(openInterest);
 
         return snapshotRepository.save(snapshot);
     }
