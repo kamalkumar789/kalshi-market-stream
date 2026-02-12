@@ -1,26 +1,15 @@
 package com.kamal.kalshi_market_stream.entities;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
 
-
 @Setter
 @Getter
 @Entity
-@Table(
-    name = "market"
-)
+@Table(name = "market")
 public class Market {
 
     @Id
@@ -30,8 +19,10 @@ public class Market {
     @Column(nullable = false, unique = true, length = 64)
     private String marketTicker;
 
-    @Column(nullable = false, length = 64)
-    private String eventTicker;
+    // ✅ Many markets -> one event
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 
     @Column(length = 256)
     private String title;
@@ -50,5 +41,4 @@ public class Market {
     private Instant updatedTime;
 
     private String result;
-
 }

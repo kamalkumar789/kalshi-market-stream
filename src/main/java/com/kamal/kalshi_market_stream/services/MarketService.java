@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.repositories.MarketRepository;
 
@@ -23,8 +24,8 @@ public class MarketService {
 
     @Transactional
     public Market storeOrUpdateMarket(
+            Event event, 
             String marketTicker,
-            String eventTicker,
             String title,
             String subtitle,
             Instant openTime,
@@ -46,9 +47,11 @@ public class MarketService {
             market = new Market();
         }
 
-        market.setMarketTicker(marketTicker);
-        market.setEventTicker(eventTicker);
+        
+
+        market.setEvent(event);
         market.setTitle(title);
+        market.setMarketTicker(marketTicker);
         market.setSubtitle(subtitle);
         market.setOpenTime(openTime);
         market.setCloseTime(closeTime);
@@ -59,7 +62,7 @@ public class MarketService {
         Market saved = marketRepository.save(market);
 
         log.info("Market saved successfully: marketTicker={}, id={}", 
-                 saved.getMarketTicker(), saved.getId());
+                 market.getMarketTicker(), saved.getId());
 
         return saved;
     }

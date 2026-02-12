@@ -3,11 +3,10 @@ package com.kamal.kalshi_market_stream.client;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.kamal.kalshi_market_stream.DTOs.KalshiMarketsResponseDTO;
+import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO;
 
 @Component
 public class KalshiClient {
-    
 
     private final WebClient kaClient;
 
@@ -17,11 +16,11 @@ public class KalshiClient {
                 .build();
     }
 
-    public KalshiMarketsResponseDTO getMarketDataByEvent(String event_ticker) {
+    public KalshiEventResponseDTO getEvent(String eventTicker) {
         return kaClient.get()
-                .uri("/markets?event_ticker={event_ticker}", event_ticker)
+                .uri("/events/{eventTicker}", eventTicker)
                 .retrieve()
-                .bodyToMono(KalshiMarketsResponseDTO.class)
-                .block(); 
+                .bodyToMono(KalshiEventResponseDTO.class)
+                .block();
     }
 }

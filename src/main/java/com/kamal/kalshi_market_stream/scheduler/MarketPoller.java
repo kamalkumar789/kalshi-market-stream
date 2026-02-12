@@ -6,20 +6,26 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.kamal.kalshi_market_stream.DTOs.KalshiMarketsResponseDTO;
-import com.kamal.kalshi_market_stream.DTOs.KalshiMarketsResponseDTO.MarketDTO;
+import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO;
+import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO.EventDTO;
+import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO.MarketDTO;
 import com.kamal.kalshi_market_stream.client.KalshiClient;
+import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
-import com.kamal.kalshi_market_stream.services.MarketService;
+import com.kamal.kalshi_market_stream.services.EventService;
 import com.kamal.kalshi_market_stream.services.MarketLatencyService;
+import com.kamal.kalshi_market_stream.services.MarketService;
 import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
 import com.kamal.kalshi_market_stream.utils.Signals;
 import com.kamal.kalshi_market_stream.utils.SignalsEngine;
@@ -29,19 +35,16 @@ public class MarketPoller {
 
     private static final Logger log = LoggerFactory.getLogger(MarketPoller.class);
 
-    // KXHIGHNY = Highest temperature in NYC (ticker) now if ticker is KXHIGHNY-26FEB13 it means ticker for today. 
-    // when we fetch on KXHIGHNY it will give markets of todays tickers so evebt_ticker will look like KXHIGHNY-26FEB13
+    private final List<String> seriesTickers;
 
-    // KXHURNYC = Highest temperature in LA
-    private final List<String> seriesTickers = List.of("KXHIGHNY", "KXHIGHLAX");
-    private static final DateTimeFormatter EVENT_DATE_FMT =
-            DateTimeFormatter.ofPattern("yyMMMdd", Locale.ENGLISH);
-    
-    private static final ZoneId ZONE = ZoneId.of("Europe/London");
+    private static final DateTimeFormatter EVENT_DATE_FMT = DateTimeFormatter.ofPattern("yyMMMdd", Locale.ENGLISH);
 
+    private final ConcurrentMap<String, Boolean> inFlightSeries = new ConcurrentHashMap<>();
 
     private final Executor marketPollExecutor;
     private final KalshiClient client;
+
+    private final EventService eventService;
     private final MarketService marketService;
     private final MarketSnapshotService snapshotService;
     private final MarketLatencyService latencyService;
@@ -49,99 +52,102 @@ public class MarketPoller {
 
     public MarketPoller(
             KalshiClient client,
+            EventService eventService,
             MarketService marketService,
             MarketSnapshotService snapshotService,
             MarketLatencyService latencyService,
             SignalsEngine signalsEngine,
-            Executor marketPollExecutor
-
-    ) {
+            Executor marketPollExecutor,
+            @Value("${kalshi.poll.seriesTickers}") List<String> seriesTickers) {
         this.client = client;
+        this.eventService = eventService;
         this.marketService = marketService;
         this.snapshotService = snapshotService;
         this.latencyService = latencyService;
         this.signalsEngine = signalsEngine;
         this.marketPollExecutor = marketPollExecutor;
+        this.seriesTickers = seriesTickers;
     }
 
-    @Scheduled(fixedRate = 5000) // fixedRate keeps a steady tick
+    @Scheduled(fixedRate = 5000)
     public void poll() {
         for (String series : seriesTickers) {
-            // separate thread for each call separately in their thread so that no time
-            // delay for other to call.
-            marketPollExecutor.execute(() -> pollSeries(series));
+            marketPollExecutor.execute(() -> pollSeriesSafe(series));
         }
     }
 
-    public void pollSeries(String seriesTicker) {
+    private void pollSeriesSafe(String seriesTicker) {
+        if (inFlightSeries.putIfAbsent(seriesTicker, true) != null)
+            return;
 
-        //To get the event of today. 
-        String todayPart = LocalDate.now(ZONE)
+        try {
+            pollSeries(seriesTicker);
+        } catch (Exception e) {
+            log.warn("Poll failed | series={} err={}", seriesTicker, e.toString());
+        } finally {
+            inFlightSeries.remove(seriesTicker);
+        }
+    }
+
+    private void pollSeries(String seriesTicker) {
+        String todayPart = LocalDate.now()
                 .format(EVENT_DATE_FMT)
-                .toUpperCase(Locale.ENGLISH); // 26FEB12
+                .toUpperCase(Locale.ENGLISH);
 
-        String eventTicker = seriesTicker + "-" + todayPart; // e.g. KXHIGHLAX-26FEB12
+        String eventTicker = seriesTicker + "-" + todayPart;
 
-        KalshiMarketsResponseDTO data = client.getMarketDataByEvent(eventTicker);
+        KalshiEventResponseDTO resp = client.getEvent(eventTicker);
+        if (resp == null || resp.getEvent() == null || resp.getMarkets() == null) {
+            log.info("No data returned | event={}", eventTicker);
+            return;
+        }
 
         // y: when API response is received by your server
         Instant receivedTs = Instant.now();
 
-        for (MarketDTO dto : data.getMarkets()) {
+        // 1) Upsert EVENT first
+        EventDTO e = resp.getEvent();
+        Event event = eventService.storeEventOrUpdate(
+                e.getEvent_ticker(),
+                e.getSeries_ticker(),
+                e.getTitle(),
+                e.getSub_title()
 
-            // x: exchange last update time from payload
-            Instant exchangeTs = parseInstant(dto.getUpdatedTime());
+        );
+
+        // 2) Upsert MARKET(s) linked to EVENT, then 3) snapshot + latency + signal
+        for (MarketDTO dto : resp.getMarkets()) {
+            
+                preDbLog(seriesTicker, eventTicker, e, dto);
+
+            Instant exchangeTs = dto.getUpdated_time(); // x
 
             Market market = marketService.storeOrUpdateMarket(
+                    event,
                     dto.getTicker(),
-                    dto.getEventTicker(),
                     dto.getTitle(),
                     dto.getSubtitle(),
-                    parseInstant(dto.getOpenTime()),
-                    parseInstant(dto.getCloseTime()),
+                    dto.getOpen_time(),
+                    dto.getClose_time(),
                     dto.getStatus(),
-                    parseInstant(dto.getCreatedTime()),
-                    exchangeTs);
-
-            log.info(
-                    "\n================ MARKET SNAPSHOT =================\n" +
-                            "Ticker      : {}\n" +
-                            "EventTicker : {}\n" +
-                            "Title       : {}\n" +
-                            "Status      : {}\n" +
-                            "Result      : {}\n" +
-                            "-----------------------------------------------\n" +
-                            "YES  -> Bid: {} | Ask: {}\n" +
-                            "NO   -> Bid: {} | Ask: {}\n" +
-                            "===============================================\n",
-                    dto.getTicker(),
-                    dto.getEventTicker(),
-                    dto.getTitle(),
-                    dto.getStatus(),
-                    market.getResult(),
-                    dto.getYesBid(),
-                    dto.getYesAsk(),
-                    dto.getNoBid(),
-                    dto.getNoAsk());
+                    dto.getCreated_time(),
+                    dto.getUpdated_time());
 
             if (market.getResult() != null && !market.getResult().isEmpty()) {
-                // market settled, no need to keep generating signals
-                signalsEngine.remove(dto.getEventTicker());
-                log.debug("Market settled. Skipping snapshots | market={}", market.getMarketTicker());
+                signalsEngine.remove(event.getEventTicker());
                 continue;
             }
 
             MarketSnapshot snapshot = snapshotService.storeSnapshot(
                     market,
                     exchangeTs,
-                    dto.getYesBid(),
-                    dto.getYesAsk(),
-                    dto.getNoBid(),
-                    dto.getNoAsk(),
-                    dto.getLastPrice());
+                    dto.getYes_bid(),
+                    dto.getYes_ask(),
+                    dto.getNo_bid(),
+                    dto.getNo_ask(),
+                    dto.getLast_price());
 
-            // z: after DB write
-            Instant processedTs = Instant.now();
+            Instant processedTs = Instant.now(); // z
 
             latencyService.recordLatency(
                     snapshot,
@@ -150,25 +156,19 @@ public class MarketPoller {
                     processedTs,
                     "REST");
 
-            // Prefer mid price to reduce spread noise
             int signalPrice = computeYesMid(dto);
+            Signals.Trend trend = signalsEngine.update(event.getEventTicker(), signalPrice);
 
-            Signals.Trend trend = signalsEngine.update(dto.getEventTicker(), signalPrice);
-
-            // Keep logs light: only one line per market per poll (change to debug if too
-            // noisy)
-            log.info("Signal | event={} market={} price={} trend={}",
-                    dto.getEventTicker(), dto.getTicker(), signalPrice, trend);
+            log.info("Poll | series={} event={} market={} price={} trend={}",
+                    seriesTicker, event.getEventTicker(), dto.getTicker(), signalPrice, trend);
         }
     }
 
     private int computeYesMid(MarketDTO dto) {
-        Integer bid = dto.getYesBid();
-        Integer ask = dto.getYesAsk();
-
-        if (bid != null && ask != null) {
+        Integer bid = dto.getYes_bid();
+        Integer ask = dto.getYes_ask();
+        if (bid != null && ask != null)
             return (bid + ask) / 2;
-        }
         if (ask != null)
             return ask;
         if (bid != null)
@@ -176,9 +176,42 @@ public class MarketPoller {
         return 0;
     }
 
-    private Instant parseInstant(String value) {
-        if (value == null || value.isEmpty())
-            return null;
-        return Instant.parse(value);
+    private void preDbLog(
+            String seriesTicker,
+            String eventTicker,
+            KalshiEventResponseDTO.EventDTO e,
+            KalshiEventResponseDTO.MarketDTO m) {
+        log.info("""
+
+                ===================[ PRE-DB MARKET SNAPSHOT ]===================
+                SeriesTicker : {}
+                EventTicker  : {}
+                EventTitle   : {}
+                MarketTicker : {}
+                MarketTitle  : {}
+                Status       : {}
+                ----------------------------------------------------------------
+                YES  -> bid:{} ask:{}
+                NO   -> bid:{} ask:{}
+                =================================================================
+                """,
+                seriesTicker,
+                eventTicker,
+                safeStr(e.getTitle()),
+                safeStr(m.getTicker()),
+                safeStr(m.getTitle()),
+                safeStr(m.getStatus()),
+                safeInt(m.getYes_bid()), safeInt(m.getYes_ask()),
+                safeInt(m.getNo_bid()), safeInt(m.getNo_ask())
+                );
     }
+
+    private String safeStr(String s) {
+        return (s == null || s.isBlank()) ? "-" : s;
+    }
+
+    private int safeInt(Integer v) {
+        return v == null ? -1 : v;
+    }
+
 }
