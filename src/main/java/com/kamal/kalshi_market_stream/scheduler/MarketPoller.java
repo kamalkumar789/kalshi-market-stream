@@ -9,7 +9,9 @@ import com.kamal.kalshi_market_stream.DTOs.KalshiMarketsResponseDTO;
 import com.kamal.kalshi_market_stream.DTOs.KalshiMarketsResponseDTO.MarketDTO;
 import com.kamal.kalshi_market_stream.client.KalshiClient;
 import com.kamal.kalshi_market_stream.entities.Market;
+import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 import com.kamal.kalshi_market_stream.services.MarketService;
+import com.kamal.kalshi_market_stream.services.MarketLatencyService;
 import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
 
 @Service
@@ -18,20 +20,29 @@ public class MarketPoller {
     private final KalshiClient client;
     private final MarketService marketService;
     private final MarketSnapshotService snapshotService;
+    private final MarketLatencyService latencyService;
 
-    public MarketPoller(KalshiClient client, MarketService marketService, MarketSnapshotService snapshotService) {
+    public MarketPoller(KalshiClient client, MarketService marketService, MarketSnapshotService snapshotService, MarketLatencyService latencyService) {
         this.client = client;
         this.marketService = marketService;
         this.snapshotService = snapshotService;
+        this.latencyService = latencyService;
     }
 
     @Scheduled(fixedDelay = 10000)
     public void poll() {
+
         KalshiMarketsResponseDTO data = client.getSeries("KXHIGHNY", 3);
-        Instant observedAt = Instant.now();
+
+        // when api responded (y). 
+
+        Instant receivedTs = Instant.now();
 
         for (MarketDTO dto : data.getMarkets()) {
             
+            // when event happened is the official date coming from api (x). 
+            Instant exchangeTs = parseInstant(dto.getUpdatedTime());
+
             // 1) Upsert Market
             Market market = marketService.storeOrUpdateMarket(
                     dto.getTicker(),
@@ -54,9 +65,9 @@ public class MarketPoller {
             // 2) Store snapshot ALWAYS (even if unchanged)
 
             System.out.println("market_snapshot" + dto.getYesAsk());
-            snapshotService.storeSnapshot(
+            MarketSnapshot snapshot = snapshotService.storeSnapshot(
                     market,
-                    observedAt,
+                    exchangeTs,
                     dto.getYesBid(),
                     dto.getYesAsk(),
                     dto.getNoBid(),
@@ -64,9 +75,22 @@ public class MarketPoller {
                     dto.getLastPrice(),
                     dto.getVolume24h(),
                     dto.getOpenInterest());
+            
+            // processed means after storing into db as per my need means process time (z)
+            Instant processedTs = Instant.now();
+
+            latencyService.recordLatency(
+                    snapshot,
+                    exchangeTs,
+                    receivedTs,
+                    processedTs,
+                    "REST"
+            );
         }
     }
 
+    
+    
     private Instant parseInstant(String value) {
         if (value == null || value.isEmpty())
             return null;

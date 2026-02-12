@@ -14,4 +14,5 @@ public class MarketSnapshotPointDTO {
     private Integer noBid;
     private Integer lastPrice;
     private String subtitle;
+    private String status;
 }

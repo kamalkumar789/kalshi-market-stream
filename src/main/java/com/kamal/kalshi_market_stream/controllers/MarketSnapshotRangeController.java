@@ -22,10 +22,10 @@ public class MarketSnapshotRangeController {
     @GetMapping("/{marketTicker}/snapshots")
     public List<MarketSnapshotPointDTO> getSnapshots(
             @PathVariable String marketTicker,
-            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
-    ) {
-        System.out.println(marketTicker);
-        return rangeService.fetch(marketTicker, from, to);
+            @RequestParam("status") String status, // ACTIVE or SETTLED
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(value = "limit", required = false, defaultValue = "100") int limit) {
+        return rangeService.fetch(marketTicker, status, from, to, limit);
     }
 }

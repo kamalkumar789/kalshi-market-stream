@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,8 +35,7 @@ public class MarketSnapshotService {
             Integer noAsk,
             Integer lastPrice,
             Integer volume24h,
-            Integer openInterest
-    ) {
+            Integer openInterest) {
         MarketSnapshot snapshot = new MarketSnapshot();
         snapshot.setMarket(market);
         snapshot.setObservedAt(observedAt);
@@ -47,21 +49,37 @@ public class MarketSnapshotService {
 
         return snapshotRepository.save(snapshot);
     }
-    
 
-    public List<MarketSnapshotPointDTO> fetch(String marketTicker, Instant from, Instant to) {
+    public List<MarketSnapshotPointDTO> fetch(
+            String marketTicker,
+            String status,
+            Instant from,
+            Instant to,
+            int limit) {
+        // safety caps so someone doesn't request 1M rows
+        int safeLimit = Math.max(1, Math.min(limit, 5000));
 
-        System.out.println(from + " "+ to);
-        return snapshotRepository
-                .findByMarket_MarketTickerAndObservedAtBetweenOrderByObservedAtAsc(marketTicker, from, to)
-                .stream()
+        Sort sort = Sort.by("DESC", "observedAt");
+        Pageable pageable = PageRequest.of(0, safeLimit, sort);
+
+        List<MarketSnapshot> rows;
+
+        if (from != null && to != null) {
+            rows = snapshotRepository.findByMarket_MarketTickerAndMarket_StatusAndObservedAtBetween(
+                    marketTicker, status, from, to, pageable);
+        } else {
+            rows = snapshotRepository.findByMarket_MarketTickerAndMarket_Status(
+                    marketTicker, status, pageable);
+        }
+
+        return rows.stream()
                 .map(s -> new MarketSnapshotPointDTO(
                         s.getObservedAt(),
                         s.getYesBid(),
                         s.getNoBid(),
                         s.getLastPrice(),
-                        s.getMarket().getSubtitle()
-                ))
+                        s.getMarket().getSubtitle(),
+                        s.getMarket().getStatus()))
                 .collect(Collectors.toList());
     }
 
