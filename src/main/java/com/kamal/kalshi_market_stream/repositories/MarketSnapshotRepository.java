@@ -11,11 +11,13 @@ import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 
 @Repository
 public interface MarketSnapshotRepository extends JpaRepository<MarketSnapshot, Long> {
-    
 
-    List<MarketSnapshot> findByMarket_MarketTickerAndMarket_Status(
-            String marketTicker,
-            String status,
+    List<MarketSnapshot> findByMarketId(Long marketId, Pageable pageable);
+
+    List<MarketSnapshot> findByMarketIdAndObservedAtBetween(
+            Long marketId,
+            Instant from,
+            Instant to,
             Pageable pageable
     );
 
@@ -31,5 +33,4 @@ public interface MarketSnapshotRepository extends JpaRepository<MarketSnapshot, 
             String marketTicker,
             Pageable pageable
     );
-
 }

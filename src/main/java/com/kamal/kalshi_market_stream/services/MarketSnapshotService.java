@@ -1,6 +1,9 @@
 package com.kamal.kalshi_market_stream.services;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,18 +16,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.kamal.kalshi_market_stream.DTOs.MarketSnapshotPointDTO;
+import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
+import com.kamal.kalshi_market_stream.repositories.EventRepository;
+import com.kamal.kalshi_market_stream.repositories.MarketRepository;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotRepository;
 
 @Service
 public class MarketSnapshotService {
 
     private final MarketSnapshotRepository snapshotRepository;
+    private final EventRepository eventRepository;
+        private final MarketRepository marketRepository;
+
+
     private static final Logger log = LoggerFactory.getLogger(MarketSnapshotService.class);
 
-    public MarketSnapshotService(MarketSnapshotRepository snapshotRepository) {
+    public MarketSnapshotService(MarketSnapshotRepository snapshotRepository, EventRepository eventRepository, MarketRepository marketRepository
+
+) {
         this.snapshotRepository = snapshotRepository;
+        this.eventRepository = eventRepository;
+        this.marketRepository = marketRepository;
     }
 
     @Transactional
@@ -57,45 +71,62 @@ public class MarketSnapshotService {
         return saved;
     }
 
-    public List<MarketSnapshotPointDTO> fetch(
+    public List<MarketSnapshotPointDTO> fetchByEventAndMarket(
+            String eventTicker,
             String marketTicker,
-            String status,
-            Instant from,
-            Instant to,
+            String status, // belongs to Market
+            LocalDateTime from,
+            LocalDateTime to,
             int limit) {
 
         int safeLimit = Math.max(1, Math.min(limit, 5000));
+        ZoneId zone = ZoneId.of("Europe/London"); // or UTC, but be consistent
 
-        log.debug("Fetching snapshots: market={}, status={}, from={}, to={}, limit={}",
-                marketTicker, status, from, to, safeLimit);
+        try {
+            // 1) event exists?
+            Event event = eventRepository.findByEventTicker(eventTicker)
+                    .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventTicker));
 
-        Sort sort = Sort.by("DESC", "observedAt");
-        Pageable pageable = PageRequest.of(0, safeLimit, sort);
+            // 2) market exists + belongs to that event + has correct status (market.status)
+            Market market = marketRepository
+                    .findByMarketTickerAndEventIdAndStatus(marketTicker, event.getId(), status)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Market not found for event/status: market=" + marketTicker +
+                                    ", event=" + eventTicker + ", status=" + status));
 
-        List<MarketSnapshot> rows;
+            // 3) convert local times to Instant for DB filtering (if you store UTC)
+            Instant fromInstant = (from == null) ? null : from.atZone(zone).toInstant();
+            Instant toInstant = (to == null) ? null : to.atZone(zone).toInstant();
 
-        if (from != null && to != null) {
-            rows = snapshotRepository
-                    .findByMarket_MarketTickerAndMarket_StatusAndObservedAtBetween(
-                            marketTicker, status, from, to, pageable);
-        } else {
-            rows = snapshotRepository
-                    .findByMarket_MarketTickerAndMarket_Status(
-                            marketTicker, status, pageable);
+            // 4) snapshots for this market only
+            Sort sort = Sort.by(Sort.Direction.DESC, "observedAt");
+            Pageable pageable = PageRequest.of(0, safeLimit, sort);
+
+            List<MarketSnapshot> rows;
+            if (fromInstant != null && toInstant != null) {
+                rows = snapshotRepository.findByMarketIdAndObservedAtBetween(
+                        market.getId(), fromInstant, toInstant, pageable);
+            } else {
+                rows = snapshotRepository.findByMarketId(
+                        market.getId(), pageable);
+            }
+
+            log.info("Fetched {} snapshots for event={}, market={}, status={}",
+                    rows.size(), eventTicker, marketTicker, status);
+
+            return rows.stream()
+                    .map(s -> new MarketSnapshotPointDTO(
+                            s.getObservedAt(),
+                            s.getYesBid(),
+                            s.getNoBid(),
+                            s.getMarket().getSubtitle(),
+                            s.getMarket().getStatus(),
+                            s.getMarket().getEvent().getEventTicker()))
+                    .toList();
+
+        } catch (Exception e) {
+            log.error("fetchByEventAndMarket failed: event={}, market={}", eventTicker, marketTicker, e);
+            return Collections.emptyList();
         }
-
-        log.debug("Fetched {} snapshot rows for market={}", rows.size(), marketTicker);
-
-        return rows.stream()
-                .map(s -> new MarketSnapshotPointDTO(
-                        s.getObservedAt(),
-                        s.getYesBid(),
-                        s.getNoBid(),
-                        s.getLastPrice(),
-                        s.getMarket().getSubtitle(),
-                        s.getMarket().getStatus(), s.getMarket().getEvent().getEventTicker()))
-                .collect(Collectors.toList());
     }
-
-
 }

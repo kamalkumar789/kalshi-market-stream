@@ -35,6 +35,9 @@ public class MarketPoller {
 
     private static final Logger log = LoggerFactory.getLogger(MarketPoller.class);
 
+    @Value("${app.timezone}")
+    private String appTz;
+
     private final List<String> seriesTickers;
 
     private static final DateTimeFormatter EVENT_DATE_FMT = DateTimeFormatter.ofPattern("yyMMMdd", Locale.ENGLISH);
@@ -90,9 +93,12 @@ public class MarketPoller {
     }
 
     private void pollSeries(String seriesTicker) {
-        String todayPart = LocalDate.now()
+
+        ZoneId Zone = ZoneId.of(appTz);
+        String todayPart = LocalDate.now(Zone)
                 .format(EVENT_DATE_FMT)
-                .toUpperCase(Locale.ENGLISH);
+                .toUpperCase(Locale.ENGLISH); // 26FEB12
+
 
         String eventTicker = seriesTicker + "-" + todayPart;
 

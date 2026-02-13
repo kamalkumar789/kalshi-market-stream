@@ -12,7 +12,6 @@ public class MarketSnapshotPointDTO {
     private Instant observedAt;
     private Integer yesBid;
     private Integer noBid;
-    private Integer lastPrice;
     private String subtitle;
     private String status;
     private String eventTicker; 

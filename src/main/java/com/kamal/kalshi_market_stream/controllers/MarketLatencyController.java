@@ -12,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/markets")
+@CrossOrigin("*")
 public class MarketLatencyController {
 
     private static final Logger log =
