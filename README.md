@@ -135,12 +135,12 @@ It will connect directly to your EC2 backend.
 
 ---
 
-## Logs Command (Important)
+## Logs Command
 
 ```bash
 journalctl -u kalshi-market-stream -f
 ```
 
-This is the main command to monitor the running backend.
+This is the command to monitor the running backend.
 
 
