@@ -305,3 +305,23 @@ fast vs slow moving averages:
 - `UP`   → short-term average > long-term average
 - `DOWN` → short-term average < long-term average
 - `FLAT` → insufficient data or equal averages
+
+
+
+## Time Zones & UTC Storage
+
+All snapshot timestamps are stored in the database in **UTC** using `Instant`.
+
+Time zone conversion is handled at runtime based on the market series.  
+The database itself always remains UTC-only.
+
+Each series is mapped to a local city time zone via configuration in `application.properties`:
+
+```properties
+kalshi.market.seriesZones.KXHIGHNY=America/New_York
+kalshi.market.seriesZones.KXHIGHLAX=America/Los_Angeles
+
+```
+## Limitations
+
+The exchange’s APIs/feeds I’m consuming don’t provide a reliable “exchange timestamp” (or even a consistent created/updated time) on the market snapshot/update messages—some timestamp fields are missing or contain placeholder/incorrect values. Because of that, I can’t compute true exchange-to-client network latency using an exchange-stamped packet time. Instead, I’m measuring system-side latency: I record receivedTs using my server’s UTC time when the update arrives (and processedTs after processing/DB write). This still gives an accurate view of end-to-end delay inside my pipeline, but it’s different from exchange-stamped latency; if the exchange later includes a trustworthy packet timestamp, I can switch to using it immediately.
