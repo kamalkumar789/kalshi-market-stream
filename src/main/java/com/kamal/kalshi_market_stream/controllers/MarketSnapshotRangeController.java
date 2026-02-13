@@ -35,7 +35,7 @@ public class MarketSnapshotRangeController {
             @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm") LocalDateTime from,
             @RequestParam(value = "to", required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm") LocalDateTime to,
-            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
 
         log.info("snapshots request -> eventTicker={}, marketTicker={}, status={}, from={}, to={}, limit={}",
                 eventTicker, marketTicker, status, from, to, limit);
