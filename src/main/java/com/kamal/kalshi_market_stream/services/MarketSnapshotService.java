@@ -21,52 +21,54 @@ import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 import com.kamal.kalshi_market_stream.repositories.EventRepository;
 import com.kamal.kalshi_market_stream.repositories.MarketRepository;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotRepository;
+import com.kamal.kalshi_market_stream.utils.SeriesZoneResolver;
 
 @Service
 public class MarketSnapshotService {
 
     private final MarketSnapshotRepository snapshotRepository;
     private final EventRepository eventRepository;
-        private final MarketRepository marketRepository;
-
+    private final MarketRepository marketRepository;
+    private final SeriesZoneResolver seriesZoneResolver;
 
     private static final Logger log = LoggerFactory.getLogger(MarketSnapshotService.class);
 
-    public MarketSnapshotService(MarketSnapshotRepository snapshotRepository, EventRepository eventRepository, MarketRepository marketRepository
+    public MarketSnapshotService(MarketSnapshotRepository snapshotRepository, EventRepository eventRepository,
+            MarketRepository marketRepository, SeriesZoneResolver seriesZoneResolver
 
-) {
+    ) {
         this.snapshotRepository = snapshotRepository;
         this.eventRepository = eventRepository;
         this.marketRepository = marketRepository;
+        this.seriesZoneResolver = seriesZoneResolver;
     }
 
     @Transactional
     public MarketSnapshot storeSnapshot(
             Market market,
-            Instant observedAt,
+            Instant createdAt,
             Integer yesBid,
             Integer yesAsk,
             Integer noBid,
             Integer noAsk,
             Integer lastPrice) {
 
-
         MarketSnapshot snapshot = new MarketSnapshot();
         snapshot.setMarket(market);
-        snapshot.setObservedAt(observedAt);
         snapshot.setYesBid(yesBid);
         snapshot.setYesAsk(yesAsk);
         snapshot.setNoBid(noBid);
         snapshot.setNoAsk(noAsk);
+        snapshot.setCreatedAt(createdAt);
         snapshot.setLastPrice(lastPrice);
 
         MarketSnapshot saved = snapshotRepository.save(snapshot);
-
 
         return saved;
     }
 
     public List<MarketSnapshotPointDTO> fetchByEventAndMarket(
+            String seriesTicker,
             String eventTicker,
             String marketTicker,
             String status, // belongs to Market
@@ -74,8 +76,8 @@ public class MarketSnapshotService {
             LocalDateTime to,
             int limit) {
 
+        ZoneId zone = seriesZoneResolver.zoneForSeries(seriesTicker);
         int safeLimit = Math.max(1, Math.min(limit, 5000));
-        ZoneId zone = ZoneId.of("Europe/London"); // or UTC, but be consistent
 
         try {
             // 1) event exists?
@@ -94,12 +96,12 @@ public class MarketSnapshotService {
             Instant toInstant = (to == null) ? null : to.atZone(zone).toInstant();
 
             // 4) snapshots for this market only
-            Sort sort = Sort.by(Sort.Direction.DESC, "observedAt");
+            Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
             Pageable pageable = PageRequest.of(0, safeLimit, sort);
 
             List<MarketSnapshot> rows;
             if (fromInstant != null && toInstant != null) {
-                rows = snapshotRepository.findByMarketIdAndObservedAtBetween(
+                rows = snapshotRepository.findByMarketIdAndCreatedAtBetween(
                         market.getId(), fromInstant, toInstant, pageable);
             } else {
                 rows = snapshotRepository.findByMarketId(
@@ -111,9 +113,11 @@ public class MarketSnapshotService {
 
             return rows.stream()
                     .map(s -> new MarketSnapshotPointDTO(
-                            s.getObservedAt(),
+                            s.getCreatedAt(),
                             s.getYesBid(),
                             s.getNoBid(),
+                            s.getYesAsk(),
+                            s.getNoAsk(),
                             s.getMarket().getSubtitle(),
                             s.getMarket().getStatus(),
                             s.getMarket().getEvent().getEventTicker()))
@@ -124,4 +128,5 @@ public class MarketSnapshotService {
             return Collections.emptyList();
         }
     }
+
 }

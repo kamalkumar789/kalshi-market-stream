@@ -22,16 +22,12 @@ public class MarketSnapshot {
     @JoinColumn(name = "market_id", nullable = false)
     private Market market;
 
-    @Column(nullable = false)
-    private Instant observedAt;
-
     private Integer yesBid;
     private Integer yesAsk;
     private Integer noBid;
     private Integer noAsk;
     private Integer lastPrice;
 
-    @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

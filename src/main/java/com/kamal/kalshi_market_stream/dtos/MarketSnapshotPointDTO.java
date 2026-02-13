@@ -9,9 +9,11 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MarketSnapshotPointDTO {
-    private Instant observedAt;
+    private Instant createdAt;
     private Integer yesBid;
     private Integer noBid;
+    private Integer yesAsk;
+    private Integer noAsk;
     private String subtitle;
     private String status;
     private String eventTicker; 

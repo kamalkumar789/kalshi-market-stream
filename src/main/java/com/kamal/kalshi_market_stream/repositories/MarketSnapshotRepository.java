@@ -14,14 +14,14 @@ public interface MarketSnapshotRepository extends JpaRepository<MarketSnapshot, 
 
     List<MarketSnapshot> findByMarketId(Long marketId, Pageable pageable);
 
-    List<MarketSnapshot> findByMarketIdAndObservedAtBetween(
+    List<MarketSnapshot> findByMarketIdAndCreatedAtBetween(
             Long marketId,
             Instant from,
             Instant to,
             Pageable pageable
     );
 
-    List<MarketSnapshot> findByMarket_MarketTickerAndMarket_StatusAndObservedAtBetween(
+    List<MarketSnapshot> findByMarket_MarketTickerAndMarket_StatusAndCreatedAtBetween(
             String marketTicker,
             String status,
             Instant from,
@@ -29,7 +29,7 @@ public interface MarketSnapshotRepository extends JpaRepository<MarketSnapshot, 
             Pageable pageable
     );
 
-    List<MarketSnapshot> findByMarket_MarketTickerOrderByObservedAtDesc(
+    List<MarketSnapshot> findByMarket_MarketTickerOrderByCreatedAtDesc(
             String marketTicker,
             Pageable pageable
     );

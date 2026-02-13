@@ -26,10 +26,11 @@ public class MarketSnapshotRangeController {
 
     private static final Logger log = LoggerFactory.getLogger(MarketSnapshotRangeController.class);
 
-    @GetMapping("/{eventTicker}/markets/{marketTicker}/snapshots")
+    @GetMapping("/{seriesTicker}/{eventTicker}/markets/{marketTicker}/snapshots")
     public List<MarketSnapshotPointDTO> getSnapshots(
             @PathVariable String eventTicker,
             @PathVariable String marketTicker,
+            @PathVariable String seriesTicker,
             @RequestParam(defaultValue = "active") String status,
             @RequestParam(value = "from", required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm") LocalDateTime from,
@@ -40,6 +41,6 @@ public class MarketSnapshotRangeController {
         log.info("snapshots request -> eventTicker={}, marketTicker={}, status={}, from={}, to={}, limit={}",
                 eventTicker, marketTicker, status, from, to, limit);
 
-        return rangeService.fetchByEventAndMarket(eventTicker, marketTicker, status, from, to, limit);
+        return rangeService.fetchByEventAndMarket(seriesTicker, eventTicker, marketTicker, status, from, to, limit);
     }
 }

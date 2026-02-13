@@ -34,7 +34,6 @@ public class Event {
     @Column(name = "sub_title")
     private String subTitle;
 
-     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

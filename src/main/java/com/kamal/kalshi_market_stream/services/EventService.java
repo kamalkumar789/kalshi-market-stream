@@ -1,5 +1,6 @@
 package com.kamal.kalshi_market_stream.services;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -22,7 +23,8 @@ public class EventService {
             String eventTicker,
             String seriesTicker,
             String title,
-            String subTitle
+            String subTitle,
+            Instant time
     ) {
         Optional<Event> opt = repo.findByEventTicker(eventTicker);
         Event e = opt.orElseGet(Event::new);
@@ -30,7 +32,8 @@ public class EventService {
         e.setEventTicker(eventTicker);
         e.setSeriesTicker(seriesTicker);
         e.setTitle(title);
-        e.setSubTitle(subTitle);
+        e.setSubTitle(subTitle);    
+        e.setCreatedAt(time);
 
 
         return repo.save(e);

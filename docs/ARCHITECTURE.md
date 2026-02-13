@@ -207,7 +207,7 @@ Response:
 ```json
 [
   {
-    "observedAt": "...",
+    "createdAt": "...",
     "yesBid": 42,
     "noBid": 58,
     "subtitle": "...",

@@ -27,6 +27,7 @@ import com.kamal.kalshi_market_stream.services.EventService;
 import com.kamal.kalshi_market_stream.services.MarketLatencyService;
 import com.kamal.kalshi_market_stream.services.MarketService;
 import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
+import com.kamal.kalshi_market_stream.utils.SeriesZoneResolver;
 import com.kamal.kalshi_market_stream.utils.Signals;
 import com.kamal.kalshi_market_stream.utils.SignalsEngine;
 
@@ -34,9 +35,6 @@ import com.kamal.kalshi_market_stream.utils.SignalsEngine;
 public class MarketPoller {
 
     private static final Logger log = LoggerFactory.getLogger(MarketPoller.class);
-
-    @Value("${app.timezone}")
-    private String appTz;
 
     private final List<String> seriesTickers;
 
@@ -46,12 +44,14 @@ public class MarketPoller {
 
     private final Executor marketPollExecutor;
     private final KalshiClient client;
+    private final ZoneId zoneId;
 
     private final EventService eventService;
     private final MarketService marketService;
     private final MarketSnapshotService snapshotService;
     private final MarketLatencyService latencyService;
     private final SignalsEngine signalsEngine;
+    private final SeriesZoneResolver seriesZoneResolver;
 
     public MarketPoller(
             KalshiClient client,
@@ -61,7 +61,9 @@ public class MarketPoller {
             MarketLatencyService latencyService,
             SignalsEngine signalsEngine,
             Executor marketPollExecutor,
-            @Value("${kalshi.poll.seriesTickers}") List<String> seriesTickers) {
+            ZoneId zoneId,
+            @Value("${kalshi.poll.seriesTickers}") List<String> seriesTickers,
+            SeriesZoneResolver seriesZoneResolver) {
         this.client = client;
         this.eventService = eventService;
         this.marketService = marketService;
@@ -69,7 +71,9 @@ public class MarketPoller {
         this.latencyService = latencyService;
         this.signalsEngine = signalsEngine;
         this.marketPollExecutor = marketPollExecutor;
+        this.zoneId = zoneId;
         this.seriesTickers = seriesTickers;
+        this.seriesZoneResolver = seriesZoneResolver;
     }
 
     @Scheduled(fixedRateString = "${kalshi.poll.schedulerInterval}")
@@ -82,6 +86,7 @@ public class MarketPoller {
     // Prevent concurrent polling of the same series by ensuring only one thread
     // processes it at a time
     private void pollSeriesSafe(String seriesTicker) {
+
         if (inFlightSeries.putIfAbsent(seriesTicker, true) != null)
             return;
 
@@ -96,10 +101,15 @@ public class MarketPoller {
 
     private void pollSeries(String seriesTicker) {
 
-        ZoneId Zone = ZoneId.of(appTz);
-        String todayPart = LocalDate.now(Zone)
+        Instant nowUtc = Instant.now();
+        ZoneId seriesZone = seriesZoneResolver.zoneForSeries(seriesTicker);
+
+        Instant exchangeTs = Instant.now(); // x
+
+        String todayPart = nowUtc.atZone(seriesZone)
+                .toLocalDate()
                 .format(EVENT_DATE_FMT)
-                .toUpperCase(Locale.ENGLISH); // 26FEB12
+                .toUpperCase(Locale.ENGLISH);
 
         String eventTicker = seriesTicker + "-" + todayPart;
 
@@ -118,7 +128,8 @@ public class MarketPoller {
                 e.getEvent_ticker(),
                 e.getSeries_ticker(),
                 e.getTitle(),
-                e.getSub_title()
+                e.getSub_title(),
+                receivedTs
 
         );
 
@@ -126,8 +137,6 @@ public class MarketPoller {
         for (MarketDTO dto : resp.getMarkets()) {
 
             logMarketSnapshots(seriesTicker, eventTicker, e, dto, receivedTs);
-
-            Instant exchangeTs = dto.getUpdated_time(); // x
 
             Market market = marketService.storeOrUpdateMarket(
                     event,
@@ -169,8 +178,8 @@ public class MarketPoller {
             Signals.Trend trend = signalsEngine.update(event.getEventTicker(), signalPrice);
 
             log.info("""
-                    📡 
-                    
+                    📡
+
                       SIGNAL UPDATE
                       ----------------------------------------------------------------
 
