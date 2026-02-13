@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Market Snapshots + Latencies</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        background: #f5f7fa;
+        color: #1a202c;
+        padding: 24px;
+        line-height: 1.5;
+      }
+      
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      
+      header {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: 24px;
+      }
+      
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+      }
+      
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        color: #718096;
+      }
+      
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #e2e8f0;
+        color: #4a5568;
+      }
+      
+      .badge.success { background: #c6f6d5; color: #22543d; }
+      .badge.error { background: #fed7d7; color: #742a2a; }
+      
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+      }
+      
+      .card-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .card-title::before {
+        content: '';
+        width: 4px;
+        height: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 2px;
+      }
+      
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        align-items: end;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      
+      label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #4a5568;
+      }
+      
+      input, select {
+        padding: 10px 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        transition: all 0.2s;
+        color: #2d3748;
+      }
+      
+      input:focus, select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      
+      button {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+      }
+      
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+      }
+      
+      button:active {
+        transform: translateY(0);
+      }
+      
+      .hint {
+        font-size: 12px;
+        color: #a0aec0;
+        margin-top: 4px;
+      }
+      
+      .message {
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-top: 16px;
+      }
+      
+      .message.info { background: #ebf8ff; color: #2c5282; border-left: 3px solid #3182ce; }
+      .message.error { background: #fff5f5; color: #742a2a; border-left: 3px solid #e53e3e; }
+      
+      canvas {
+        max-height: 400px;
+        width: 100% !important;
+      }
+      
+      .table-wrapper {
+        max-height: 400px;
+        overflow: auto;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        margin-top: 12px;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      
+      th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      
+      th {
+        background: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      
+      tr:last-child td {
+        border-bottom: none;
+      }
+      
+      tr:hover {
+        background: #f7fafc;
+      }
+      
+      .text-right { text-align: right; }
+      .text-muted { color: #a0aec0; }
+      
+      .stats {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        padding: 12px 0;
+        font-size: 13px;
+        color: #4a5568;
+      }
+      
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      
+      .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #a0aec0;
+      }
+      
+      .stat-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <header>
+        <h1>Market Snapshots + Latencies</h1>
+        <div class="status-bar">
+          <span>🔗 <code id="baseUrlLabel"></code></span>
+          <span class="badge" id="statusBadge">idle</span>
+        </div>
+      </header>
+
+      <!-- Event Configuration -->
+      <div class="card">
+        <div class="card-title">Event Configuration</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Series</label>
+            <select id="seriesSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input id="dateInput" type="date" />
+          </div>
+          <div class="form-group">
+            <label>Event Ticker</label>
+            <input id="eventTickerInput" type="text" placeholder="Auto-generated" />
+            <div class="hint">Format: SERIES-YYMMMDD</div>
+          </div>
+          <div class="form-group">
+            <button id="loadMarketsBtn">Load Markets</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Selection -->
+      <div class="card">
+        <div class="card-title">Market Selection</div>
+        <div class="form-grid">
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Market</label>
+            <select id="marketSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>Market Ticker</label>
+            <input id="marketTickerInput" type="text" readonly />
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="marketStatusSelect">
+              <option value="active" selected>Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="closed">Closed</option>
+              <option value="settled">Settled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Snapshots -->
+      <div class="card">
+        <div class="card-title">Market Snapshots</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>From Time</label>
+            <input id="fromTimeInput" type="time" step="1" value="00:00:00" />
+          </div>
+          <div class="form-group">
+            <label>To Time</label>
+            <input id="toTimeInput" type="time" step="1" value="23:59:59" />
+          </div>
+          <div class="form-group">
+            <label>Limit</label>
+            <input id="limitInput" type="number" value="1000" min="1" max="5000" />
+          </div>
+          <div class="form-group">
+            <label>Chart Type</label>
+            <select id="chartTypeSelect">
+              <option value="line" selected>Line</option>
+              <option value="bar">Bar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <button id="loadSnapshotsBtn">Load Snapshots</button>
+          </div>
+        </div>
+        <div id="msg"></div>
+        <div id="err"></div>
+        <canvas id="chartCanvas"></canvas>
+      </div>
+
+      <!-- Latencies -->
+      <div class="card">
+        <div class="card-title">Market Latencies</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Limit</label>
+            <input id="latencyLimitInput" type="number" value="50" min="1" max="500" />
+          </div>
+          <div class="form-group">
+            <button id="loadLatenciesBtn">Load Latencies</button>
+          </div>
+        </div>
+        
+        <div class="stats" id="latencyStats" style="display: none;">
+          <div class="stat-item">
+            <span class="stat-label">Rows</span>
+            <span class="stat-value" id="statRows">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Min (ms)</span>
+            <span class="stat-value" id="statMin">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Avg (ms)</span>
+            <span class="stat-value" id="statAvg">—</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Max (ms)</span>
+            <span class="stat-value" id="statMax">—</span>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Snapshot ID</th>
+                <th>Exchange TS</th>
+                <th>Received TS</th>
+                <th>Processed TS</th>
+                <th class="text-right">Network (ms)</th>
+                <th class="text-right">Processing (ms)</th>
+                <th class="text-right">End-to-End (ms)</th>
+              </tr>
+            </thead>
+            <tbody id="latenciesBody">
+              <tr>
+                <td colspan="7" class="text-muted">No data loaded</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const BASE_URL = "http://localhost:8080";
+      document.getElementById("baseUrlLabel").textContent = BASE_URL;
+
+      const MARKETS_API = (eventTicker, status) =>
+        `${BASE_URL}/api/events/${encodeURIComponent(eventTicker)}/markets` +
+        (status ? `?status=${encodeURIComponent(status)}` : "");
+
+      const SNAPSHOTS_API = (eventTicker, marketTicker, status, from, to, limit) => {
+        const params = new URLSearchParams();
+        if (status) params.set("status", status);
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        if (limit) params.set("limit", String(limit));
+        return `${BASE_URL}/api/events/${encodeURIComponent(eventTicker)}/markets/${encodeURIComponent(
+          marketTicker
+        )}/snapshots?${params.toString()}`;
+      };
+
+      const LATENCIES_API = (marketTicker, limit) => {
+        const params = new URLSearchParams();
+        if (limit) params.set("limit", String(limit));
+        return `${BASE_URL}/api/markets/${encodeURIComponent(marketTicker)}/latencies?${params.toString()}`;
+      };
+
+      function setStatus(text, type = 'info') {
+        const badge = document.getElementById("statusBadge");
+        badge.textContent = text;
+        badge.className = 'badge ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
+      }
+
+      function showMsg(text) {
+        const el = document.getElementById("msg");
+        if (!text) { el.innerHTML = ''; return; }
+        el.innerHTML = `<div class="message info">${text}</div>`;
+      }
+
+      function showErr(text) {
+        const el = document.getElementById("err");
+        if (!text) { el.innerHTML = ''; return; }
+        el.innerHTML = `<div class="message error">${text}</div>`;
+      }
+
+      function toMMM(mm) {
+        const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+        return months[mm - 1] || "UNK";
+      }
+
+      function buildEventTicker(series, yyyyMmDd) {
+        if (!series || !yyyyMmDd) return "";
+        const [yyyy, mm, dd] = yyyyMmDd.split("-").map((x) => parseInt(x, 10));
+        const yy = String(yyyy % 100).padStart(2, "0");
+        return `${series}-${yy}${toMMM(mm)}${String(dd).padStart(2, "0")}`;
+      }
+
+      function buildSimpleDateTime(dateStr, timeStr) {
+        if (!dateStr || !timeStr) return null;
+        const t = timeStr.length === 5 ? timeStr + ":00" : timeStr;
+        return `${dateStr}T${t}`;
+      }
+
+      async function safeFetchJson(url) {
+        const res = await fetch(url);
+        const text = await res.text();
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} ${res.statusText}\n${text}`);
+        }
+        return text ? JSON.parse(text) : null;
+      }
+
+      function fmtNum(x) {
+        if (x === null || x === undefined) return "";
+        return Number(x).toLocaleString();
+      }
+
+      function setLatenciesTable(rows) {
+        const body = document.getElementById("latenciesBody");
+        const statsDiv = document.getElementById("latencyStats");
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+          body.innerHTML = `<tr><td colspan="7" class="text-muted">No latencies returned</td></tr>`;
+          statsDiv.style.display = 'none';
+          return;
+        }
+
+        const e2e = rows.map(r => r.endToEndLatencyMs).filter(v => typeof v === "number").sort((a,b)=>a-b);
+        const min = e2e[0];
+        const max = e2e[e2e.length - 1];
+        const avg = e2e.reduce((a,b)=>a+b,0) / (e2e.length || 1);
+
+        statsDiv.style.display = 'flex';
+        document.getElementById('statRows').textContent = rows.length;
+        document.getElementById('statMin').textContent = fmtNum(min);
+        document.getElementById('statAvg').textContent = fmtNum(avg.toFixed(1));
+        document.getElementById('statMax').textContent = fmtNum(max);
+
+        body.innerHTML = rows.map((r) => `
+          <tr>
+            <td>${r.snapshotId ?? ""}</td>
+            <td>${r.exchangeTs ?? ""}</td>
+            <td>${r.receivedTs ?? ""}</td>
+            <td>${r.processedTs ?? ""}</td>
+            <td class="text-right">${fmtNum(r.networkLatencyMs)}</td>
+            <td class="text-right">${fmtNum(r.processingLatencyMs)}</td>
+            <td class="text-right">${fmtNum(r.endToEndLatencyMs)}</td>
+          </tr>
+        `).join("");
+      }
+
+      let chart = null;
+
+      function renderChart(points, chartType) {
+        const ctx = document.getElementById("chartCanvas").getContext("2d");
+        const labels = points.map((p) => {
+          const s = String(p.observedAt);
+          return s.length > 19 ? s.substring(11, 19) : s;
+        });
+        const yesBid = points.map((p) => p.yesBid ?? null);
+        const noBid = points.map((p) => p.noBid ?? null);
+
+        if (chart) chart.destroy();
+
+        chart = new Chart(ctx, {
+          type: chartType,
+          data: {
+            labels,
+            datasets: [
+              { 
+                label: "Yes Bid", 
+                data: yesBid, 
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 2,
+                tension: 0.1
+              },
+              { 
+                label: "No Bid", 
+                data: noBid, 
+                borderColor: '#764ba2',
+                backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                borderWidth: 2,
+                tension: 0.1
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: { 
+              legend: { display: true },
+              tooltip: { enabled: true }
+            },
+            scales: { 
+              x: { ticks: { maxRotation: 0 } },
+              y: { beginAtZero: true }
+            },
+          },
+        });
+      }
+
+      const seriesSelect = document.getElementById("seriesSelect");
+      const dateInput = document.getElementById("dateInput");
+      const eventTickerInput = document.getElementById("eventTickerInput");
+      const loadMarketsBtn = document.getElementById("loadMarketsBtn");
+      const marketSelect = document.getElementById("marketSelect");
+      const marketTickerInput = document.getElementById("marketTickerInput");
+      const marketStatusSelect = document.getElementById("marketStatusSelect");
+      const fromTimeInput = document.getElementById("fromTimeInput");
+      const toTimeInput = document.getElementById("toTimeInput");
+      const limitInput = document.getElementById("limitInput");
+      const chartTypeSelect = document.getElementById("chartTypeSelect");
+      const loadSnapshotsBtn = document.getElementById("loadSnapshotsBtn");
+      const latencyLimitInput = document.getElementById("latencyLimitInput");
+      const loadLatenciesBtn = document.getElementById("loadLatenciesBtn");
+
+      function updateEventTickerPreview() {
+        const built = buildEventTicker(seriesSelect.value, dateInput.value);
+        if (!eventTickerInput.value || eventTickerInput.dataset.auto === "true") {
+          eventTickerInput.value = built;
+          eventTickerInput.dataset.auto = "true";
+        }
+      }
+
+      eventTickerInput.addEventListener("input", () => (eventTickerInput.dataset.auto = "false"));
+      seriesSelect.addEventListener("change", updateEventTickerPreview);
+      dateInput.addEventListener("change", updateEventTickerPreview);
+
+      marketSelect.addEventListener("change", () => {
+        const opt = marketSelect.selectedOptions[0];
+        if (!opt) return;
+        marketTickerInput.value = opt.dataset.ticker || "";
+      });
+
+      function loadSeries() {
+        const series = [
+          { ticker: "KXHIGHNY", name: "KXHIGHNY" },
+          { ticker: "KXHIGHLAX", name: "KXHIGHLAX" },
+        ];
+        seriesSelect.innerHTML = "";
+        for (const s of series) {
+          const opt = document.createElement("option");
+          opt.value = s.ticker;
+          opt.textContent = s.name;
+          seriesSelect.appendChild(opt);
+        }
+        const today = new Date();
+        dateInput.value = today.toISOString().slice(0, 10);
+        updateEventTickerPreview();
+        setStatus("Ready", "success");
+      }
+
+      async function loadMarkets() {
+        setStatus("Loading...", "info");
+        showErr("");
+        showMsg("");
+
+        const eventTicker = eventTickerInput.value.trim();
+        const status = marketStatusSelect.value;
+
+        if (!eventTicker) {
+          setStatus("Error", "error");
+          showErr("Event ticker is empty");
+          return;
+        }
+
+        try {
+          const url = MARKETS_API(eventTicker, status);
+          const markets = await safeFetchJson(url);
+
+          if (!Array.isArray(markets) || markets.length === 0) {
+            marketSelect.innerHTML = "";
+            marketTickerInput.value = "";
+            setStatus("No markets", "info");
+            showMsg(`No markets found for ${eventTicker}`);
+            return;
+          }
+
+          marketSelect.innerHTML = "";
+          for (const m of markets) {
+            const opt = document.createElement("option");
+            const ticker = m.marketTicker ?? m.market_ticker ?? m.ticker ?? "";
+            const title = m.title ?? "";
+            const subtitle = m.subtitle ?? "";
+            const st = m.status ?? "";
+            opt.textContent = `${ticker} — ${subtitle || title || "(no title)"} [${st}]`;
+            opt.dataset.ticker = ticker;
+            marketSelect.appendChild(opt);
+          }
+
+          marketSelect.selectedIndex = 0;
+          marketTickerInput.value = marketSelect.selectedOptions[0].dataset.ticker;
+
+          setStatus("Success", "success");
+          showMsg(`Loaded ${markets.length} markets`);
+        } catch (e) {
+          setStatus("Error", "error");
+          showErr(String(e));
+        }
+      }
+
+      async function loadSnapshots() {
+        setStatus("Loading...", "info");
+        showErr("");
+        showMsg("");
+
+        const eventTicker = eventTickerInput.value.trim();
+        const marketTicker = marketTickerInput.value.trim();
+        const status = marketStatusSelect.value;
+        const dateStr = dateInput.value;
+
+        const from = buildSimpleDateTime(dateStr, fromTimeInput.value);
+        const to = buildSimpleDateTime(dateStr, toTimeInput.value);
+
+        const limit = Math.max(1, Math.min(parseInt(limitInput.value || "100", 10), 5000));
+        const chartType = chartTypeSelect.value;
+
+        if (!eventTicker) return showErr("Event ticker is empty");
+        if (!marketTicker) return showErr("Market ticker is empty");
+        if (!dateStr) return showErr("Date is empty");
+        if (!from || !to) return showErr("From/To time missing");
+
+        try {
+          const url = SNAPSHOTS_API(eventTicker, marketTicker, status, from, to, limit);
+          const data = await safeFetchJson(url);
+
+          if (!Array.isArray(data) || data.length === 0) {
+            setStatus("No data", "info");
+            showMsg("No snapshots found for this range");
+            renderChart([], chartType);
+            return;
+          }
+
+          const points = [...data].reverse();
+          renderChart(points, chartType);
+
+          setStatus("Success", "success");
+          showMsg(`Loaded ${data.length} snapshots`);
+        } catch (e) {
+          setStatus("Error", "error");
+          showErr(String(e));
+        }
+      }
+
+      async function loadLatencies() {
+        setStatus("Loading...", "info");
+        showErr("");
+        showMsg("");
+
+        const marketTicker = marketTickerInput.value.trim();
+        if (!marketTicker) {
+          setStatus("Error", "error");
+          showErr("Select a market first");
+          return;
+        }
+
+        const limit = Math.max(1, Math.min(parseInt(latencyLimitInput.value || "50", 10), 500));
+
+        try {
+          const url = LATENCIES_API(marketTicker, limit);
+          const rows = await safeFetchJson(url);
+
+          if (!Array.isArray(rows) || rows.length === 0) {
+            setStatus("No data", "info");
+            showMsg("No latencies found");
+            setLatenciesTable([]);
+            return;
+          }
+
+          setLatenciesTable(rows);
+
+          setStatus("Success", "success");
+          showMsg(`Loaded ${rows.length} latency records`);
+        } catch (e) {
+          setStatus("Error", "error");
+          showErr(String(e));
+        }
+      }
+
+      loadMarketsBtn.addEventListener("click", loadMarkets);
+      loadSnapshotsBtn.addEventListener("click", loadSnapshots);
+      loadLatenciesBtn.addEventListener("click", loadLatencies);
+
+      loadSeries();
+    </script>
+  </body>
+</html>
