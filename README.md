@@ -1,5 +1,14 @@
 # Kalshi Market Stream
 
+
+## Recommended Reading Order
+
+For architecture diagrams and full system design, start with:
+
+👉 **`docs/ARCHITECTURE.md`**
+
+After reviewing the architecture guide, return here and continue with the setup instructions.
+
 ## Overview
 
 This project runs the Kalshi market streaming backend as a background service on an AWS EC2 instance.  
@@ -46,7 +55,7 @@ The script will:
 ### Step 3 — Open Ports in AWS Security Group
 
 1. Open AWS Console → EC2  
-2. Select your instance  
+2. Select your instance preferred t3.micro tried t3.nano was too slow
 3. Go to **Security**  
 4. Open the attached **Security Group**  
 5. Edit inbound rules  
@@ -56,7 +65,7 @@ Add:
 - HTTP → Port **80**
 - Custom TCP → Port **8080**
 
-Source: `My IP` (recommended) or your required range
+Source: custom ip (recommended/tested)
 
 ---
 
@@ -107,12 +116,12 @@ Clone the repository locally and use `frontend.html` from the main directory.
 
 ### Update Backend URL in Frontend
 
-In the frontend HTML file (around line ~380):
+In the frontend HTML file (baseUrl field):
 
 Replace the base URL with your EC2 **Public DNS**:
 
 ```js
-const baseUrl = "http://ec2-xx-xx-xx-xx.compute.amazonaws.com:8080";
+const baseUrl = "http://<your-ec2-public-ip>:8080";
 ```
 
 Example format:
@@ -134,12 +143,4 @@ journalctl -u kalshi-market-stream -f
 
 This is the main command to monitor the running backend.
 
----
-
-## Architecture & System Details
-
-For architecture diagrams, directory structure, and deeper system explanation,  
-see the separate documentation file:
-
-**`docs/ARCHITECTURE.md`**
 

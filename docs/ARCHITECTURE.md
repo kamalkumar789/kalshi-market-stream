@@ -281,13 +281,13 @@ The frontend reads data using **HTTP APIs only**, so it is used mainly for:
 
 ### Frontend Output Screenshot
 
-![Frontend Output](images/output-frontend.png)
+![Frontend Output](images/frontend.png)
 
 ---
 
 ### Backend Logs Screenshot
 
-![Backend Logs](images/output-logs.png)
+![Backend Logs](images/console_logs.png)
 
 ---
 
