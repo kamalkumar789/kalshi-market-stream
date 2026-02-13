@@ -55,7 +55,7 @@ The script will:
 ### Step 3 — Open Ports in AWS Security Group
 
 1. Open AWS Console → EC2  
-2. Select your instance preferred t3.micro tried t3.nano was too slow
+2. Select your instance 
 3. Go to **Security**  
 4. Open the attached **Security Group**  
 5. Edit inbound rules  
