@@ -8,7 +8,7 @@ SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
 
 # ---- Build/runtime config ----
 # Option A: build from a local project folder already on the server
-PROJECT_DIR="/opt/${APP_NAME}-src"
+PROJECT_DIR="/opt/${APP_NAME}"
 
 # Option B (optional): clone from git, then build
 # If you use this, set GIT_REPO and optionally GIT_REF

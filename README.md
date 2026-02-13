@@ -7,7 +7,7 @@ The frontend must be run locally and connected to the EC2 backend.
 
 ---
 
-## Backend Deployment (AWS EC2)
+## Backend Deployment (AWS EC2 UBUNTU)
 
 ### Step 1 — Clone Repository
 
@@ -25,11 +25,6 @@ cd kalshi-market-stream
 
 ### Step 2 — Run Setup Script
 
-Review the script:
-
-```bash
-cat setup.sh
-```
 
 Run it:
 
