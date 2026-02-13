@@ -1,6 +1,6 @@
 package com.kamal.kalshi_market_stream.controllers;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketLatencyResponseDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketLatencyResponseDTO;
 import com.kamal.kalshi_market_stream.services.MarketLatencyService;
 
 import org.slf4j.Logger;
@@ -30,13 +30,8 @@ public class MarketLatencyController {
             @PathVariable String marketTicker,
             @RequestParam(defaultValue = "50") int limit
     ) {
-        log.info("Fetching latencies | market={} limit={}", marketTicker, limit);
-
         List<MarketLatencyResponseDTO> result =
                 service.getRecentFreshLatencies(marketTicker, limit);
-
-        log.info("Returned {} latency records for market={}",
-                result.size(), marketTicker);
 
         return result;
     }

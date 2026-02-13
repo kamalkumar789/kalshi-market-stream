@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketSnapshotPointDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketSnapshotPointDTO;
 import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
@@ -51,8 +50,6 @@ public class MarketSnapshotService {
             Integer noAsk,
             Integer lastPrice) {
 
-        log.debug("Storing snapshot: market={}, observedAt={}, lastPrice={}",
-                market.getMarketTicker(), observedAt, lastPrice);
 
         MarketSnapshot snapshot = new MarketSnapshot();
         snapshot.setMarket(market);
@@ -65,8 +62,6 @@ public class MarketSnapshotService {
 
         MarketSnapshot saved = snapshotRepository.save(snapshot);
 
-        log.debug("Snapshot saved: id={}, market={}",
-                saved.getId(), market.getMarketTicker());
 
         return saved;
     }

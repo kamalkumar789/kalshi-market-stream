@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketListItemDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketListItemDTO;
 import com.kamal.kalshi_market_stream.services.MarketService;
 
 @RestController

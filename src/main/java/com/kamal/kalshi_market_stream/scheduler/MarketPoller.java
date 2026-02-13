@@ -16,10 +16,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO;
-import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO.EventDTO;
-import com.kamal.kalshi_market_stream.DTOs.KalshiEventResponseDTO.MarketDTO;
 import com.kamal.kalshi_market_stream.client.KalshiClient;
+import com.kamal.kalshi_market_stream.dtos.KalshiEventResponseDTO;
+import com.kamal.kalshi_market_stream.dtos.KalshiEventResponseDTO.EventDTO;
+import com.kamal.kalshi_market_stream.dtos.KalshiEventResponseDTO.MarketDTO;
 import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
@@ -72,13 +72,15 @@ public class MarketPoller {
         this.seriesTickers = seriesTickers;
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRateString = "${kalshi.poll.schedulerInterval}")
     public void poll() {
         for (String series : seriesTickers) {
             marketPollExecutor.execute(() -> pollSeriesSafe(series));
         }
     }
 
+    // Prevent concurrent polling of the same series by ensuring only one thread
+    // processes it at a time
     private void pollSeriesSafe(String seriesTicker) {
         if (inFlightSeries.putIfAbsent(seriesTicker, true) != null)
             return;
@@ -98,7 +100,6 @@ public class MarketPoller {
         String todayPart = LocalDate.now(Zone)
                 .format(EVENT_DATE_FMT)
                 .toUpperCase(Locale.ENGLISH); // 26FEB12
-
 
         String eventTicker = seriesTicker + "-" + todayPart;
 
@@ -123,8 +124,8 @@ public class MarketPoller {
 
         // 2) Upsert MARKET(s) linked to EVENT, then 3) snapshot + latency + signal
         for (MarketDTO dto : resp.getMarkets()) {
-            
-                preDbLog(seriesTicker, eventTicker, e, dto);
+
+            logMarketSnapshots(seriesTicker, eventTicker, e, dto, receivedTs);
 
             Instant exchangeTs = dto.getUpdated_time(); // x
 
@@ -162,11 +163,31 @@ public class MarketPoller {
                     processedTs,
                     "REST");
 
+            // QNO3 calculating signal whether it is going up, flat, or down based on recent
+            // window average values. Further go itto Signals.java.
             int signalPrice = computeYesMid(dto);
             Signals.Trend trend = signalsEngine.update(event.getEventTicker(), signalPrice);
 
-            log.info("Poll | series={} event={} market={} price={} trend={}",
-                    seriesTicker, event.getEventTicker(), dto.getTicker(), signalPrice, trend);
+            log.info("""
+                    📡 
+                    
+                      SIGNAL UPDATE
+                      ----------------------------------------------------------------
+
+                      time   : {}
+                      series : {}
+                      event  : {}
+                      market : {}
+                      trend  : {}
+
+                      ----------------------------------------------------------------
+                    """,
+                    receivedTs,
+                    seriesTicker,
+                    event.getEventTicker(),
+                    dto.getTicker(),
+                    trend);
+
         }
     }
 
@@ -182,20 +203,22 @@ public class MarketPoller {
         return 0;
     }
 
-    private void preDbLog(
+    private void logMarketSnapshots(
             String seriesTicker,
             String eventTicker,
             KalshiEventResponseDTO.EventDTO e,
-            KalshiEventResponseDTO.MarketDTO m) {
+            KalshiEventResponseDTO.MarketDTO m,
+            Instant receivedTs) {
         log.info("""
 
-                ===================[ PRE-DB MARKET SNAPSHOT ]===================
+                ===================[ MARKET SNAPSHOT ]===================
                 SeriesTicker : {}
                 EventTicker  : {}
                 EventTitle   : {}
                 MarketTicker : {}
                 MarketTitle  : {}
                 Status       : {}
+                Received time: {}
                 ----------------------------------------------------------------
                 YES  -> bid:{} ask:{}
                 NO   -> bid:{} ask:{}
@@ -207,9 +230,9 @@ public class MarketPoller {
                 safeStr(m.getTicker()),
                 safeStr(m.getTitle()),
                 safeStr(m.getStatus()),
+                receivedTs,
                 safeInt(m.getYes_bid()), safeInt(m.getYes_ask()),
-                safeInt(m.getNo_bid()), safeInt(m.getNo_ask())
-                );
+                safeInt(m.getNo_bid()), safeInt(m.getNo_ask()));
     }
 
     private String safeStr(String s) {

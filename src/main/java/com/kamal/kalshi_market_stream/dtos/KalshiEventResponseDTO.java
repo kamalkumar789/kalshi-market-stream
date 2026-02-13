@@ -1,4 +1,4 @@
-package com.kamal.kalshi_market_stream.DTOs;
+package com.kamal.kalshi_market_stream.dtos;
 
 import lombok.Data;
 

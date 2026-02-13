@@ -1,6 +1,6 @@
 package com.kamal.kalshi_market_stream.services;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketLatencyResponseDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketLatencyResponseDTO;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshot;
 import com.kamal.kalshi_market_stream.entities.MarketSnapshotLatency;
 import com.kamal.kalshi_market_stream.repositories.MarketSnapshotLatencyRepository;
@@ -122,7 +122,7 @@ public class MarketLatencyService {
             if (l == null) continue;
 
             result.add(new MarketLatencyResponseDTO(
-                    snapshotId, // snapshot id (not latency id)
+                    snapshotId, 
                     l.getExchangeTs(),
                     l.getReceivedTs(),
                     l.getProcessedTs(),

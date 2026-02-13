@@ -6,6 +6,31 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Maintains two sliding windows:
+ * fast window = 5 values
+ * slow window = 10 values
+ *
+ * Each new value is added to both windows.
+ * If a window exceeds its size limit, the oldest value is removed.
+ *
+ * Example:
+ * incoming values → 1 2 3 4 5 6
+ *
+ * fast window step-by-step:
+ * [1 2 3 4 5]  → full
+ * add 6 → [2 3 4 5 6] (1 removed, 6 added)
+ *
+ * slow window behaves the same but keeps the last 10 values.
+ *
+ * After updating both windows, their averages are compared:
+ * UP   → fast average > slow average
+ * DOWN → fast average < slow average
+ * FLAT → not enough data or equal averages
+ *
+ * This detects short-term momentum vs long-term trend.
+ */
+
 public class Signals {
 
     public enum Trend {
@@ -23,8 +48,6 @@ public class Signals {
     private long slowSum = 0;
 
     public Trend update(int value) {
-        log.debug("Signals update called with value={}", value);
-
         // --- fast window update ---
         fastQueue.addLast(value);
         fastSum += value;
@@ -40,8 +63,6 @@ public class Signals {
         }
 
         if (fastQueue.size() < fastWindow || slowQueue.size() < slowWindow) {
-            log.debug("Windows not full yet: fast={}, slow={}",
-                    fastQueue.size(), slowQueue.size());
             return Trend.FLAT;
         }
 
@@ -56,8 +77,6 @@ public class Signals {
             trend = diff > 0.0 ? Trend.UP : Trend.DOWN;
         }
 
-        log.debug("Trend computed: fastAvg={}, slowAvg={}, diff={}, trend={}",
-                fastAvg, slowAvg, diff, trend);
 
         return trend;
     }

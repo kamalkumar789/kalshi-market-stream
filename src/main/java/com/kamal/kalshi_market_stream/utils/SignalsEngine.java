@@ -15,14 +15,10 @@ public class SignalsEngine {
 
     public Signals.Trend update(String eventTicker, int price) {
         Signals s = signalsByEvent.computeIfAbsent(eventTicker, k -> {
-            log.debug("Creating new Signals instance for event={}", k);
             return new Signals();
         });
 
         Signals.Trend trend = s.update(price);
-
-        log.debug("SignalsEngine update: event={}, price={}, trend={}",
-                eventTicker, price, trend);
 
         return trend;
     }

@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketListItemDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketListItemDTO;
 import com.kamal.kalshi_market_stream.entities.Event;
 import com.kamal.kalshi_market_stream.entities.Market;
 import com.kamal.kalshi_market_stream.repositories.EventRepository;
@@ -40,16 +40,13 @@ public class MarketService {
             String status,
             Instant createdTime,
             Instant updatedTime) {
-        log.info("storeOrUpdateMarket called for marketTicker={}", marketTicker);
 
         Optional<Market> existingOpt = marketRepository.findByMarketTicker(marketTicker);
 
         Market market;
         if (existingOpt.isPresent()) {
-            log.info("Updating existing market: {}", marketTicker);
             market = existingOpt.get();
         } else {
-            log.info("Creating new market: {}", marketTicker);
             market = new Market();
         }
 
@@ -65,8 +62,6 @@ public class MarketService {
 
         Market saved = marketRepository.save(market);
 
-        log.info("Market saved successfully: marketTicker={}, id={}",
-                market.getMarketTicker(), saved.getId());
 
         return saved;
     }
@@ -83,7 +78,7 @@ public class MarketService {
             return markets.stream()
                     .map(m -> new MarketListItemDTO(
                             m.getMarketTicker(),
-                            m.getTitle(), // if you don’t have title, remove this or map subtitle
+                            m.getTitle(), 
                             m.getSubtitle(),
                             m.getStatus()))
                     .toList();

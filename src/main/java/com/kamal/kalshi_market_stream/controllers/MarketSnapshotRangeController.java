@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import com.kamal.kalshi_market_stream.DTOs.MarketSnapshotPointDTO;
+import com.kamal.kalshi_market_stream.dtos.MarketSnapshotPointDTO;
 import com.kamal.kalshi_market_stream.services.MarketSnapshotService;
 
 @RestController
