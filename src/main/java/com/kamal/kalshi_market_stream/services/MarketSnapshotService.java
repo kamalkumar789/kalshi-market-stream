@@ -2,6 +2,7 @@ package com.kamal.kalshi_market_stream.services;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
@@ -77,6 +78,8 @@ public class MarketSnapshotService {
             int limit) {
 
         ZoneId zone = seriesZoneResolver.zoneForSeries(seriesTicker);
+
+        log.info("seriesTicker={}, resolvedZone={}", seriesTicker, zone);
         int safeLimit = Math.max(1, Math.min(limit, 5000));
 
         try {
@@ -110,17 +113,21 @@ public class MarketSnapshotService {
 
             log.info("Fetched {} snapshots for event={}, market={}, status={}",
                     rows.size(), eventTicker, marketTicker, status);
+            log.info("seriesTicker={}, resolvedZone={}", seriesTicker, zone);
 
             return rows.stream()
-                    .map(s -> new MarketSnapshotPointDTO(
-                            s.getCreatedAt(),
-                            s.getYesBid(),
-                            s.getNoBid(),
-                            s.getYesAsk(),
-                            s.getNoAsk(),
-                            s.getMarket().getSubtitle(),
-                            s.getMarket().getStatus(),
-                            s.getMarket().getEvent().getEventTicker()))
+                    .map(s -> {
+                        var odt = s.getCreatedAt().atZone(zone).toOffsetDateTime();
+                        return new MarketSnapshotPointDTO(
+                                odt.toString(), // e.g. 2026-02-13T13:15:22.516975-05:00
+                                s.getYesBid(),
+                                s.getNoBid(),
+                                s.getYesAsk(),
+                                s.getNoAsk(),
+                                s.getMarket().getSubtitle(),
+                                s.getMarket().getStatus(),
+                                s.getMarket().getEvent().getEventTicker());
+                    })
                     .toList();
 
         } catch (Exception e) {

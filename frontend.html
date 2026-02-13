@@ -272,8 +272,8 @@
       <div class="card">
         <div class="card-title">Event Configuration</div>
         <div class="message info" style="margin-bottom: 16px;">
-          📍 <strong>KXHIGHNY</strong> — Highest New York Temperature Market. Live snapshot range reflects New York time zone.<br>
-          📍 <strong>KXHIGHLAX</strong> — Highest Los Angeles Temperature Market. Live snapshot range reflects Los Angeles time zone.<br>
+          📍 <strong>KXHIGHNY</strong> — New York Temperature Market. Live snapshot range reflects New York time zone.<br>
+          📍 <strong>KXHIGHLAX</strong> — Los Angeles Temperature Market. Live snapshot range reflects Los Angeles time zone.<br>
           <em>Time ranges follow the market's local city clock — pick a window based on that zone.</em>
         </div>
         <div class="form-grid">
@@ -568,7 +568,7 @@
 
       let chart = null;
 
-      // ✅ UPDATED: renderChart with yesAsk and noAsk
+      // ✅ UPDATED: renderChart with yesAsk and noAsk only
       function renderChart(points) {
         const ctx = document.getElementById("chartCanvas").getContext("2d");
 
@@ -577,8 +577,6 @@
           return s.length > 19 ? s.substring(11, 19) : s;
         });
 
-        const yesBid = points.map((p) => p.yesBid ?? null);
-        const noBid = points.map((p) => p.noBid ?? null);
         const yesAsk = points.map((p) => p.yesAsk ?? null);
         const noAsk = points.map((p) => p.noAsk ?? null);
 
@@ -590,37 +588,19 @@
             labels,
             datasets: [
               {
-                label: "Yes Bid",
-                data: yesBid,
+                label: "Yes Ask",
+                data: yesAsk,
                 borderColor: "#667eea",
                 backgroundColor: "rgba(102, 126, 234, 0.1)",
                 borderWidth: 2,
                 tension: 0.1,
               },
               {
-                label: "Yes Ask",
-                data: yesAsk,
-                borderColor: "#4C51BF",
-                backgroundColor: "rgba(76, 81, 191, 0.1)",
-                borderWidth: 2,
-                borderDash: [5, 5],
-                tension: 0.1,
-              },
-              {
-                label: "No Bid",
-                data: noBid,
+                label: "No Ask",
+                data: noAsk,
                 borderColor: "#764ba2",
                 backgroundColor: "rgba(118, 75, 162, 0.1)",
                 borderWidth: 2,
-                tension: 0.1,
-              },
-              {
-                label: "No Ask",
-                data: noAsk,
-                borderColor: "#553C9A",
-                backgroundColor: "rgba(85, 60, 154, 0.1)",
-                borderWidth: 2,
-                borderDash: [5, 5],
                 tension: 0.1,
               },
             ],

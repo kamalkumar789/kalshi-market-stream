@@ -186,7 +186,7 @@ Response:
 Returns historical snapshot points for a market.
 
 ```
-GET /api/events/{eventTicker}/markets/{marketTicker}/snapshots
+GET /api/events/{seriesTicker}/{eventTicker}/markets/{marketTicker}/snapshots
 ```
 
 Query params:
@@ -210,6 +210,8 @@ Response:
     "createdAt": "...",
     "yesBid": 42,
     "noBid": 58,
+    "yesAsk": 11,
+    "noAsk": 12,
     "subtitle": "...",
     "status": "active",
     "eventTicker": "..."

@@ -2,6 +2,7 @@
 package com.kamal.kalshi_market_stream.dtos;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +10,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class MarketSnapshotPointDTO {
-    private Instant createdAt;
+    private String createdAt;
     private Integer yesBid;
     private Integer noBid;
     private Integer yesAsk;
