@@ -16,7 +16,7 @@ The frontend must be run locally and connected to the EC2 backend.
 
 ---
 
-## Backend Deployment (AWS EC2 UBUNTU)
+## Backend Deployment (AWS EC2 UBUNTU preferred t3.micro tried t3.nano was too slow)
 
 ### Step 1 — Clone Repository
 
