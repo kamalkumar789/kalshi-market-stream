@@ -6,9 +6,18 @@ APP_USER="kalshiapp"
 APP_DIR="/opt/${APP_NAME}"
 SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
 
-# Jar is inside the project's target/ folder (run this script from project root)
-JAR_SOURCE="./target/kalshi-market-stream-0.0.1-SNAPSHOT.jar"
-JAR_TARGET="${APP_DIR}/kalshi-market-stream-0.0.1-SNAPSHOT.jar"
+# ---- Build/runtime config ----
+# Option A: build from a local project folder already on the server
+PROJECT_DIR="/opt/${APP_NAME}-src"
+
+# Option B (optional): clone from git, then build
+# If you use this, set GIT_REPO and optionally GIT_REF
+GIT_REPO=""          # e.g. "https://github.com/you/kalshi-market-stream.git"
+GIT_REF="main"       # e.g. "main" or a tag/commit
+
+# Your jar name (as produced by your build)
+JAR_NAME="kalshi-market-stream-0.0.1-SNAPSHOT.jar"
+JAR_TARGET="${APP_DIR}/${JAR_NAME}"
 
 # --- DB config (must match your application.properties) ---
 DB_NAME="kalshi_db"
@@ -33,16 +42,17 @@ apt-get install -y temurin-23-jdk
 
 java -version
 
+echo "=== Install build tools (Maven, Git) ==="
+apt-get install -y maven git
+
 echo "=== Install PostgreSQL ==="
 apt-get install -y postgresql postgresql-contrib
 systemctl enable postgresql
 systemctl start postgresql
 
 echo "=== Configure database ==="
-# Set password for postgres user
 sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
 
-# Create DB if not exists (CREATE DATABASE cannot run inside DO/transaction)
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
   sudo -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
   echo "Created database: ${DB_NAME}"
@@ -57,15 +67,48 @@ fi
 
 mkdir -p "${APP_DIR}"
 
-echo "=== Copy jar from project target/ ==="
-if [[ ! -f "${JAR_SOURCE}" ]]; then
-  echo "❌ Jar not found at: ${JAR_SOURCE}"
-  echo "Run this script from the project root (where pom.xml exists) and ensure the jar is built."
-  echo "Try: ls -la target/"
+echo "=== Prepare source code ==="
+if [[ -n "${GIT_REPO}" ]]; then
+  echo "Using Git repo: ${GIT_REPO}"
+  if [[ -d "${PROJECT_DIR}/.git" ]]; then
+    echo "Repo already exists, pulling latest..."
+    git -C "${PROJECT_DIR}" fetch --all --prune
+    git -C "${PROJECT_DIR}" checkout "${GIT_REF}"
+    git -C "${PROJECT_DIR}" pull
+  else
+    rm -rf "${PROJECT_DIR}"
+    git clone "${GIT_REPO}" "${PROJECT_DIR}"
+    git -C "${PROJECT_DIR}" checkout "${GIT_REF}"
+  fi
+else
+  echo "Using existing project directory: ${PROJECT_DIR}"
+  if [[ ! -f "${PROJECT_DIR}/pom.xml" ]]; then
+    echo "❌ pom.xml not found in ${PROJECT_DIR}"
+    echo "Set PROJECT_DIR to the folder containing pom.xml, or set GIT_REPO to clone."
+    exit 1
+  fi
+fi
+
+echo "=== Build jar at runtime (server) ==="
+cd "${PROJECT_DIR}"
+
+# Clean + build. Skip tests to speed up; remove -DskipTests if you want tests.
+mvn -DskipTests clean package
+
+# Find the built jar (avoid picking *original*.jar if you use spring-boot repackage)
+JAR_BUILT_PATH="$(ls -1 target/*.jar | grep -v 'original-' | head -n 1 || true)"
+
+if [[ -z "${JAR_BUILT_PATH}" || ! -f "${JAR_BUILT_PATH}" ]]; then
+  echo "❌ Built jar not found in target/"
+  echo "Contents of target/:"
+  ls -la target/ || true
   exit 1
 fi
 
-cp "${JAR_SOURCE}" "${JAR_TARGET}"
+echo "Built jar: ${JAR_BUILT_PATH}"
+
+echo "=== Deploy jar to app directory ==="
+cp "${JAR_BUILT_PATH}" "${JAR_TARGET}"
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
 chmod 750 "${JAR_TARGET}"
 
@@ -84,6 +127,10 @@ ExecStart=/usr/bin/java -jar ${JAR_TARGET}
 Restart=always
 RestartSec=3
 
+# Optional: keep logs in journal, and set some limits
+# StandardOutput=journal
+# StandardError=journal
+
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -94,5 +141,4 @@ systemctl restart "${APP_NAME}"
 
 echo ""
 echo "✅ Setup complete"
-echo "systemctl status ${APP_NAME}"
-echo "journalctl -u ${APP_NAME} -f"
+echo "Check logs: journalctl -u ${APP_NAME} -f"
